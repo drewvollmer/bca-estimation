@@ -1,0 +1,6 @@
+% simulate3-clean.m
+% Replicating the strategy and output of simulate3-clean.cc
+% Drew Vollmer 2017-12-20
+
+clear;
+clc;

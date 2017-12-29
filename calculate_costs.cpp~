@@ -1,0 +1,221 @@
+// calculate_costs.cc
+// Simulate auctions for each bid; use the resulting choice probabilities to infer seller costs
+// Drew Vollmer 2017-12-22
+
+#include <stdio.h>
+#include <iostream> // for cout
+#include <math.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <strings.h>
+#include <cstring>
+#include <fstream> // for infile()
+#include <algorithm> // to count character occurrences in string: std::count()
+#include <vector> // For vector class
+
+// Use "cout" and "vector" rather than std::cout and std::vector
+using namespace std;
+
+// Functions:
+
+// 1. Import data
+// 2. Import parameters
+// 3. Import inverse CDFs
+
+// 4. Simulate auction and return a double array
+
+// main() strategy: import bids one by one.  For the current bid in memory, simulate auctions and store.
+
+
+////////////////////////////////////////////////////////////
+//// Define class to contain bid data
+typedef struct {
+    double amount;
+    int sellRep;
+    int sumRep;
+    int numReps;
+    int buyerAuctions;
+    int previousCancels;
+    bool isLastBid; // Tells if this bid is the last one in the file
+} Bid;
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//// Functions to import data
+
+// Get number of bidder types and auction types in the data
+pair<int, int> getAucTypes(){
+
+    // Assuming CDFs are in files of the form "inv_cdf_[0-9].csv", one for each type of bidder, find the number of bidders
+    // and thus the number of files to import
+    int numFiles = 0;
+    char fileName[50];
+    size_t numCols;
+
+    // Strategy: count the files that exist and break after the first file that does not exist
+    while(true){
+        sprintf(fileName, "inv_cdf_%d.csv", numFiles + 1);
+        ifstream infile(fileName);
+        if( infile.good() ){
+            // Increase number of files found
+            numFiles++;
+
+            // Use the first file to get the number of columns in the data
+            if( numFiles == 1 ){
+                string firstLine;
+                getline(infile, firstLine);
+                numCols = count(firstLine.begin(), firstLine.end(), ',') + 1;
+            }
+                
+        } else {
+            break;
+        }
+    }
+    //cout << "Data contains " << numFiles << " bidder types and " << numCols << " auction types.\n";
+    pair<int, int> modelTypes (numFiles, numCols);    
+    return( modelTypes );
+
+}
+
+// Import inverse CDFs
+void importInverseCDFs(vector< vector< vector<double> > >& invCDFs, pair<int, int> modelTypes){
+
+    // Loop over all files; start by initializing variables used in the loops
+    int lineNum;    
+    for(int i = 0; i < modelTypes.first; i++){
+
+        // Get file name using current name index
+        char fileName[100];
+        sprintf(fileName, "inv_cdf_%d.csv", i + 1);
+
+        // Open the file and read into the variable line
+        FILE *fileID = fopen(fileName, "r");
+        char line[10000];
+        char *res = fgets(line, sizeof(line), fileID);
+        lineNum = 0;
+        // while loop reads until the end of the file; start with line 2 (first line is a header)
+        while (res) {
+            res = fgets(line, sizeof(line), fileID);
+            sscanf(line, "%lf, %lf, %lf", &invCDFs[i][0][lineNum], &invCDFs[i][1][lineNum], &invCDFs[i][2][lineNum]);
+            lineNum++;
+        }        
+    }
+}
+
+// Import nested logit parameters
+vector<double> importNLogitParams(){
+
+    ifstream infile("coeff.txt");
+    string line;
+    // Ignore the first (header) row
+    getline(infile, line);
+    int numCols = count(line.begin(), line.end(), '\t') + 1;
+
+    string toInsert;
+    vector<double> nlogitParams(numCols, 0);
+
+    for(int i = 0; i < numCols; i++){
+        infile >> toInsert;
+        // Ignore the first entry, y1 (string.compare() returns 0 for a match)
+        if( toInsert.compare("y1") == 0 ){
+            continue;
+        }
+        nlogitParams[i] = atof(toInsert.c_str());
+    }
+
+    return( nlogitParams );
+}
+
+
+Bid getBidData(FILE *bidFile){
+
+    char line[10000];
+    char *res = fgets(line, sizeof(line), bidFile);
+
+    // Declare bid object to return and fill with the current line
+    Bid currentBid;
+    currentBid.isLastBid = !res;
+    // Also declare placeholder variables to be read into that we don't care about
+    int intToIgnore[11];
+    double doubleToIgnore[4];
+
+    // Line structure: BidRequestID, DecisionNum, Decision, OverallDecision, SumRep, NumReps, PreviousBids,
+    // PreviousCancels, NumBids, TrueType, AvgBid, Cost, SellRep, BidAmount, AucWt, AucWt2
+    sscanf(line, "%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %lf, %lf, %d, %lf, %d, %lf, %lf",
+           &intToIgnore[0], &intToIgnore[1], &intToIgnore[2], &intToIgnore[3], &currentBid.sumRep, &currentBid.numReps,
+           &currentBid.buyerAuctions, &currentBid.previousCancels, &intToIgnore[8], &intToIgnore[9], &doubleToIgnore[0],
+           &doubleToIgnore[1], &intToIgnore[10], &currentBid.amount, &currentBid.sellRep, &doubleToIgnore[2], &doubleToIgnore[3]);
+
+    return( currentBid );
+
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+///// Main Program
+int main(){
+
+    //////////////////////////////////////////////////////////////////////////////
+    //// Part 1: Import data
+    
+    // Use the aucTypes function to get the number of bidder and auction types
+    pair<int, int> aucTypes;
+    aucTypes = getAucTypes();
+    if( (aucTypes.first == 0) | (aucTypes.second == 0) ){
+        cout << "Error: zero bidder or auction types.\n";
+        return(1);
+    }
+
+    // Import inverse CDF functions into a bidder_types x auction_types x 1000 vector (not an array since dimensions are unknown
+    // at compile time)
+    vector< vector< vector<double> > > invCDFs( aucTypes.first, vector< vector<double> >(aucTypes.second, vector<double>(1000, 0)) );
+    // Use a function (returning void) to import data to the invCDFs vector. Pass in the whole vector, but the function only
+    // works with a reference to the memory address
+    importInverseCDFs(invCDFs, aucTypes);
+
+    // Import parameters as a vector (this restricts hard-coded changes to the function where they're used)
+    vector<double> nlogitParams = importNLogitParams();
+
+    // Loop over each bid in the data set and simulate 1000 auctions for each
+    // Start by beginning to read the bid file and skipping the header row
+    FILE* bidFile = fopen("synthdata-weights2.txt", "r");
+    char line[10000];
+    char *res = fgets(line, sizeof(line), bidFile); // Gets header line, which we ignore
+
+    // Get bids from other lines and process auctions    
+    Bid currentBid;
+    currentBid.isLastBid = false;
+
+    while( ! currentBid.isLastBid ){
+
+        currentBid = getBidData(bidFile);
+
+        // Skip this bid If it's a "header" bid for the auction (amount 0)
+        if( currentBid.amount == 0 ){
+            continue;
+        }
+        
+        cout << currentBid.amount << "; " << currentBid.sellRep << "; " << currentBid.sumRep << "; " <<
+            currentBid.numReps << "; " << currentBid.buyerAuctions << "; " << currentBid.previousCancels << "\n";
+        cout << currentBid.isLastBid << "\n";
+        
+    }
+
+    cout << numBids << "\n";
+    // double lnprevcancel = log(buyerCancels + 1);
+    // double lnnumreps = log(numReps + 1);
+    // double lnsucreqs = log(buyerAuctions - buyerCancels + 1);
+    // double buyrep = (numReps > 0 ? ((double)sumRep/numReps) : 0);
+
+    
+
+    
+    //cout << invCDFs[0][1][445] << "\n";
+
+    
+    // Program finished execution: return normal exit code 0
+    return 0;
+}

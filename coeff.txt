@@ -1,0 +1,2 @@
+	decisionno:bidamount	decisionno:nsellrep	type2:lnnumreps	type2:buyrep	type2:lnprevcancel	type2:_cons	type1_tau:_cons	type2_tau:_cons	
+y1	-.00936417	 1.7022591	 .51805125	 .08765127	 -.8576701	-.61086508	         1	 .39972019	

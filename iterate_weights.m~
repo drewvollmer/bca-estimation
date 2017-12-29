@@ -1,0 +1,7 @@
+% iterate_weights.m
+% A helper function for beauty contest auction estimation. Calculate densities and update the
+% weights.  Return the updated weights and a criterion for convergence.
+% Drew Vollmer 2017-12-13
+
+clear;
+clc;
