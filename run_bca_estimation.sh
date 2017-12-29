@@ -5,14 +5,15 @@
 
 cd `dirname $0`
 
-# Iterate auction type probabilities until convergence
-sortkde3.m
 
-# Plug converged distributions into Stata for nested logit
-synthdata.do
+# Calculate probabilities for the type of each auction (sortkde3.cc in original code)
+calc_auction_type_probs.m
 
-# simulate3-clean.cc using output from sortkde3
-./calculate_costs.exe
+# Calculate bid selection probabilities using nested logit
+estimate_bid_selection.do
+
+# Use selection probabilities to solve for bidder costs
+calculate_costs.cpp
 
 
 ## This concludes a single iteration of the program.  Full estimation requires more iterations so that we can get standard

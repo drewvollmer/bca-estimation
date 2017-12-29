@@ -1,5 +1,8 @@
-% sortkde3.m
-% A MATLAB file doing the same tasks as sortkde3.cc in the provided estimation procedure
+% estimate_auction_type_probs.m
+% Use an iterative procedure to estimate the probability of each auction being a specific auction
+% type.  Auction types are interepreted as the difficulty of the job being procured.
+% The number of possible auction types is the modeler's choice, given in the num_auc_types command
+% line argument.
 % Drew Vollmer 2017-12-12
 
 clear;
