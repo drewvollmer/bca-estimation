@@ -7,7 +7,8 @@ cd `dirname $0`
 
 
 # Calculate probabilities for the type of each auction (sortkde3.cc in original code)
-calc_auction_type_probs.m
+# (Note the command line is the number of auction types in the model)
+matlab -nodisplay -nosplash -r "try, estimate_auction_type_probs(3), catch, end, quit"
 
 # Calculate bid selection probabilities using nested logit
 estimate_bid_selection.do

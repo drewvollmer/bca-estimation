@@ -11,7 +11,7 @@ clc;
 % Higher precision
 format long;
 
-cd('c:/Users/drewv/Documents/duke_econ/ra_work/bollinger_17_18/solar_beauty_contest_auctions/rewritten_estimation_code/');
+%cd('c:/Users/drewv/Documents/duke_econ/ra_work/bollinger_17_18/solar_beauty_contest_auctions/rewritten_estimation_code/');
 
 %% Part 1: Import data from sampled-aucs.txt, as in the readLines() function
 % Columns:     sscanf(line, "%d %d %d %d %d %d %d %d %d %d %lf %lf %d %lf",
