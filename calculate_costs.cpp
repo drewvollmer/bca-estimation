@@ -2,6 +2,7 @@
 // Simulate auctions for each bid; use the resulting choice probabilities to infer seller costs
 // Drew Vollmer 2017-12-22
 
+// Import libraries for functions and data structures
 #include <stdio.h>
 #include <iostream> // for cout
 #include <math.h>
@@ -13,22 +14,16 @@
 #include <algorithm> // to count character occurrences in string: std::count() (also for some string methods)
 #include <vector> // For vector class
 
-// Use "cout" and "vector" rather than std::cout and std::vector
+// Use standard namespace: can call cout and vector rather than std::cout and std::vector
 using namespace std;
 
-// Functions:
 
-// 1. Import data
-// 2. Import parameters
-// 3. Import inverse CDFs
-
-// 4. Simulate auction and return a double array
-
-// main() strategy: import bids one by one.  For the current bid in memory, simulate auctions and store.
 
 
 ////////////////////////////////////////////////////////////
-//// Define class to contain bid data
+//// Class definitions
+
+// Bid class to store important bid data
 typedef struct {
     double amount;
     int sellRep;
@@ -40,7 +35,8 @@ typedef struct {
 } Bid;
 
 
-// And a class to contain the number of types
+// Auction traits class storing the number of types used in the auction
+// (Inferred from data files in getAucTraits() at runtime.)
 typedef struct {
     int numBidderTypes;
     int numAucTypes;
@@ -49,6 +45,8 @@ typedef struct {
 
 
 ///////////////////////////////////////////////////////////////////////////////////
+//// Functions
+
 //// Functions to import data
 
 // Get number of bidder types and auction types in the data
@@ -89,6 +87,8 @@ AucTraits getAucTraits(){
 
 
 // Import inverse CDFs
+// Note that this function returns void, not the invCDFs 3D vector because of its size.  Instead,
+// the function returns void and fills in the vector using a reference to its memory address.
 void importInverseCDFs(vector< vector< vector<double> > >& invCDFs, AucTraits aucTraits){
 
     // Loop over all files; start by initializing variables used in the loops
@@ -120,7 +120,7 @@ void importInverseCDFs(vector< vector< vector<double> > >& invCDFs, AucTraits au
                 invCDFs[i][currentCol][row] = atof( stringToRead.c_str() );
             }
         }
-
+        // Finished processing the current file; next loop iteration handles the next file
     }
 
 }
@@ -150,7 +150,8 @@ vector<double> importNLogitParams(){
     return( nlogitParams );
 }
 
-
+// Get bid data for the next bid in the file. Works by taking in an object referring to the file, then
+// extracting the next line (bid) and processing it.  Returns a Bid object.
 Bid getBidData(FILE *bidFile){
 
     char line[10000];
@@ -175,7 +176,10 @@ Bid getBidData(FILE *bidFile){
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
-//// Simulate auction: find the probability of selecting the current bid for a given type of auction
+//// Analysis functions: simulate the result of an auction for an input bid
+
+// simulateAuction returns the probability that the input bid is selected in a simulated
+// auction and the derivative of the probability.  Both are used to calculate costs.
 pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderTypes, vector< vector< vector<double> > >& invCDFs,
                                      vector<double>& nlogitParams){
 
@@ -249,6 +253,9 @@ pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderT
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///// Main Program
+// Strategy: import all data, then simulate 1000 auctions for each bid and each auction type. Use the mean
+// results of the auction to find true selection probabilities and derivatives, then use those to infer
+// seller costs.
 int main(){
 
     //////////////////////////////////////////////////////////////////////////////
