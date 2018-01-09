@@ -1,4 +1,4 @@
-% estimate_auction_type_probs.m
+% calc_auction_type_probs.m
 % Use an iterative procedure to estimate the probability of each auction being a specific auction
 % type.  Auction types are interepreted as the difficulty of the job being procured.  The lowest
 % type is for the highest-cost jobs; the highest type is for the lowest.
@@ -10,7 +10,7 @@
 
 
 % Frame as a function to use command line arguments
-function [] = estimate_auction_type_probs(num_auc_types)
+function [] = calc_auction_type_probs(num_auc_types)
 
 % Quality control for the command line parameter
 assert(nargin == 1, 'Function only takes one argument.');
@@ -132,7 +132,7 @@ end
 
 sampled.Properties.VariableNames = {'BidRequestID', 'DecisionNo', 'Decision', 'OverallDecision', 'SumRep', ...
                     'NumReps', 'PreviousBids', 'PreviousCancels', 'numbids', 'ttype', 'avbid', 'cost', ...
-                    'sellRep', 'bidAmount', 'bidder_type', 'aucwt', 'aucwt2'};
+                    'sellRep', 'bidAmount', 'bidder_type'};
 writetable(sampled, 'synthdata-weights2.txt');
 
 

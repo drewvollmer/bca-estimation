@@ -1,6 +1,10 @@
+// estimate_bid_selection.do
+// Estimating a nested logit model used to judge the probability that each bid wins an auction
+// Written by Hema Yoganarasimhan
+// Lightly adapted by Drew Vollmer 2018-01-09
+
+
 // Stata starts in project directory
-// cd "~/work/DataAnalysis/NewProj/distclean"
-cd "c:/Users/drewv/Documents/duke_econ/ra_work/bollinger_17_18/solar_beauty_contest_auctions/yoganarasimhan_simulation_code/"
 
 insheet using synthdata-weights2.txt
 
@@ -9,8 +13,11 @@ replace decisiontype = 2 if decisionno != 1
 label variable decisiontype "1 if cancel, 2 if bid"
 label variable overalldecision "1 if cancel was chose, 2 if a bid was chosen"
 label variable ttype "True type of the auction"
-label variable aucwt "posterior prob. auction is of type 1"
-label variable aucwt2 "posterior prob. auction is of type 2"
+
+// Removed aucwt variables from the file since they are unused
+/* label variable aucwt "posterior prob. auction is of type 1" */
+/* label variable aucwt2 "posterior prob. auction is of type 2" */
+
 gen nsellrep = sellrep - 8
 replace nsellrep = 0 if decisiontype == 1
 label variable nsellrep "sellrep - 8"
@@ -32,4 +39,3 @@ base(1) estconst || decisionno: , noconstant case(bidrequestid) notree constrain
 
 mat coeff = e(b) // coefficient vector
 mat2txt, m(coeff) sav(coeff.txt) replace // saves matrix coeff to a file called coeff.txt in the working directory
-	

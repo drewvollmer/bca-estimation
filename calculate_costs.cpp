@@ -162,14 +162,14 @@ Bid getBidData(FILE *bidFile){
     currentBid.isLastBid = !res;
     // Also declare placeholder variables to be read into that we don't care about
     int intToIgnore[11];
-    double doubleToIgnore[4];
+    double doubleToIgnore[2];
 
     // Line structure: BidRequestID, DecisionNum, Decision, OverallDecision, SumRep, NumReps, PreviousBids,
-    // PreviousCancels, NumBids, TrueType, AvgBid, Cost, SellRep, BidAmount, AucWt, AucWt2
-    sscanf(line, "%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %lf, %lf, %d, %lf, %d, %lf, %lf",
+    // PreviousCancels, NumBids, TrueType, AvgBid, Cost, SellRep, BidAmount
+    sscanf(line, "%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %lf, %lf, %d, %lf, %d",
            &intToIgnore[0], &intToIgnore[1], &intToIgnore[2], &intToIgnore[3], &currentBid.sumRep, &currentBid.numReps,
            &currentBid.buyerAuctions, &currentBid.previousCancels, &intToIgnore[8], &intToIgnore[9], &doubleToIgnore[0],
-           &doubleToIgnore[1], &intToIgnore[10], &currentBid.amount, &currentBid.sellRep, &doubleToIgnore[2], &doubleToIgnore[3]);
+           &doubleToIgnore[1], &intToIgnore[10], &currentBid.amount, &currentBid.sellRep);
 
     return( currentBid );
 
