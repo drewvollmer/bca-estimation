@@ -29,11 +29,15 @@ label variable buyrep "sumrep/numreps if numreps != 0, else 0"
 gen lnprevcancel = ln(previouscancels+1)
 label variable lnprevcancel "ln(previouscancels+1)"
 
-
+/* Define nest for nested logit: observations with decisiontype 1 and */
+/* decisiontype 2 are contained in different nests */
 nlogitgen type = decisiontype(1, 2)
 
 constraint 1 [type1_tau]_cons = 1
 
+/* Syntax: bidamount and nsellrep determines choice between bids. lnnumreps, buyrep, */
+/* and lnprevcancel are constant for each bid and determine the choice between type 1 */
+/* (accepting a bid) and the outside option */
 nlogit decision bidamount nsellrep || type: lnnumreps buyrep lnprevcancel, ///
 base(1) estconst || decisionno: , noconstant case(bidrequestid) notree constraint(1)
 

@@ -143,7 +143,7 @@ vector<double> importNLogitParams(){
         if( toInsert.compare("y1") == 0 ){
             continue;
         }
-        // Use atof and .c_str() to convert string to double
+        // Use atof() and .c_str() to convert string to double
         nlogitParams[i] = atof(toInsert.c_str());
     }
 
@@ -218,7 +218,7 @@ pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderT
 
     // Account for the fact that numReps might be zero
     double buyRepVal = (currentBid.numReps > 0 ? (currentBid.sumRep / currentBid.numReps) : 0);
-    double topUtil = nlogitParams[6] + nlogitParams[3]*log(currentBid.numReps + 1) +
+    double nestUtil = nlogitParams[6] + nlogitParams[3]*log(currentBid.numReps + 1) +
         nlogitParams[4]*buyRepVal + nlogitParams[5]*log(currentBid.previousCancels + 1);
     // Entry 6: c7_cons; entry 3: c7_lnnumreps; entry 4: c7_buyrep; entry 5: lnprevcancel
 
@@ -231,10 +231,10 @@ pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderT
     }
     double incVal = log( expUtilSum / exp(utilitiesMax) ) + utilitiesMax;
 
-    // cout << "topUtil: " << topUtil << "; incVal: " << incVal << "; expUtilSum: " << expUtilSum << "\n";
+    // cout << "nestUtil: " << nestUtil << "; incVal: " << incVal << "; expUtilSum: " << expUtilSum << "\n";
     // cout << "utilities[0]: " << utilities[0] << "; utilitiesMax: " << utilitiesMax << "\n";
     
-    double A = exp(topUtil + nlogitParams[8]*incVal);
+    double A = exp(nestUtil + nlogitParams[8]*incVal);
     double B = exp(utilities[0] - utilitiesMax);
     double C = expUtilSum / exp( utilitiesMax );
 
