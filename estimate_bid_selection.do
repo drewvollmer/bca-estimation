@@ -6,17 +6,12 @@
 
 // Stata starts in project directory
 
-insheet using synthdata-weights2.txt
+insheet using "template_data.csv"
 
-gen decisiontype = 1 if decisionno == 1
-replace decisiontype = 2 if decisionno != 1
+gen decisiontype = 1 if bidamount == 0
+replace decisiontype = 2 if bidamount != 0
 label variable decisiontype "1 if cancel, 2 if bid"
 label variable overalldecision "1 if cancel was chose, 2 if a bid was chosen"
-label variable ttype "True type of the auction"
-
-// Removed aucwt variables from the file since they are unused
-/* label variable aucwt "posterior prob. auction is of type 1" */
-/* label variable aucwt2 "posterior prob. auction is of type 2" */
 
 gen nsellrep = sellrep - 8
 replace nsellrep = 0 if decisiontype == 1
@@ -39,7 +34,7 @@ constraint 1 [type1_tau]_cons = 1
 /* and lnprevcancel are constant for each bid and determine the choice between type 1 */
 /* (accepting a bid) and the outside option */
 nlogit decision bidamount nsellrep || type: lnnumreps buyrep lnprevcancel, ///
-base(1) estconst || decisionno: , noconstant case(bidrequestid) notree constraint(1)
+base(1) estconst || decisionno: , noconstant case(auctionid) notree constraint(1)
 
 mat coeff = e(b) // coefficient vector
 mat2txt, m(coeff) sav(coeff.txt) replace // saves matrix coeff to a file called coeff.txt in the working directory

@@ -26,10 +26,10 @@ using namespace std;
 // Bid class to store important bid data
 typedef struct {
     double amount;
-    int sellRep;
+    int bidderType;
     int sumRep;
     int numReps;
-    int buyerAuctions;
+    int previousAuctions;
     int previousCancels;
     bool isLastBid; // Tells if this bid is the last one in the file
 } Bid;
@@ -164,12 +164,20 @@ Bid getBidData(FILE *bidFile){
     int intToIgnore[11];
     double doubleToIgnore[2];
 
-    // Line structure: BidRequestID, DecisionNum, Decision, OverallDecision, SumRep, NumReps, PreviousBids,
-    // PreviousCancels, NumBids, TrueType, AvgBid, Cost, SellRep, BidAmount
-    sscanf(line, "%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %lf, %lf, %d, %lf, %d",
-           &intToIgnore[0], &intToIgnore[1], &intToIgnore[2], &intToIgnore[3], &currentBid.sumRep, &currentBid.numReps,
-           &currentBid.buyerAuctions, &currentBid.previousCancels, &intToIgnore[8], &intToIgnore[9], &doubleToIgnore[0],
-           &doubleToIgnore[1], &intToIgnore[10], &currentBid.amount, &currentBid.sellRep);
+    // Order and usage of data:
+    // AuctionID (ignored), BidderType (ignored), ObservedAucType, BidAmount (used),
+    // Decision (ignored), OverallDecision (ignored), [Regressors] (used)
+    sscanf(line, "%d, %d, %d, %lf, %d, %d, %d, %d, %d, %d, %d",
+           &intToIgnore[0], &currentBid.bidderType, &intToIgnore[1], &currentBid.amount,
+           &intToIgnore[2], &intToIgnore[3], &currentBid.sumRep, &currentBid.numReps,
+           &currentBid.previousAuctions, &currentBid.previousCancels, &intToIgnore[4]);
+    // cout << currentBid.amount << "; " << currentBid.sumRep << "; " << currentBid.numReps << "; " << currentBid.previousAuctions << "; " << currentBid.previousCancels << "; " << currentBid.bidderType << "\n";
+    // // Line structure: BidRequestID, DecisionNum, Decision, OverallDecision, SumRep, NumReps, PreviousBids,
+    // // PreviousCancels, NumBids, TrueType, AvgBid, Cost, SellRep, BidAmount
+    // sscanf(line, "%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %lf, %lf, %d, %lf, %d",
+    //        &intToIgnore[0], &intToIgnore[1], &intToIgnore[2], &intToIgnore[3], &currentBid.sumRep, &currentBid.numReps,
+    //        &currentBid.previousAuctions, &currentBid.previousCancels, &intToIgnore[8], &intToIgnore[9], &doubleToIgnore[0],
+    //        &doubleToIgnore[1], &intToIgnore[10], &currentBid.amount, &currentBid.bidderType);
 
     return( currentBid );
 
@@ -184,19 +192,19 @@ pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderT
                                      vector<double>& nlogitParams){
 
     int numOtherBids = 9;
-
-    //cout << "Starting bid: " << currentBid.amount << "; type " << currentBid.sellRep << "\n";
+    
+    // cout << "Starting bid: " << currentBid.amount << "; type " << currentBid.bidderType << "\n";
     
     // Draw numOtherBids integers in {0, 1, ..., numBidderTypes} for bidder types. Then draw the same number of quantiles
     // in {0, ..., 999} and get the bid corresponding to the quantile and bidder type from the inverse CDF
     int bidTypes[numOtherBids + 1];
     double bids[numOtherBids + 1];
-    bidTypes[0] = currentBid.sellRep - 1; // Subtract 1 to adjust for indexing that starts at 0
+    bidTypes[0] = currentBid.bidderType - 1; // Subtract 1 to adjust for indexing that starts at 0
     bids[0] = currentBid.amount;
     for(int i = 1; i < numOtherBids + 1; i++){
         bidTypes[i] = random() % numBidderTypes;
         bids[i] = invCDFs[bidTypes[i]][aucType][random() % 1000];
-        //cout << aucType << "; " << bidTypes[i] << "; " << bids[i] << "\n";
+        // cout << aucType << "; " << bidTypes[i] << "; " << bids[i] << "\n";
     }
 
 
@@ -230,20 +238,20 @@ pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderT
     double incVal = log( expUtilSum );
 
     // cout << "nestUtil: " << nestUtil << "; incVal: " << incVal << "; expUtilSum: " << expUtilSum << "\n";
-    // cout << "utilities[0]: " << utilities[0] << "; utilitiesMax: " << utilitiesMax << "\n";
+    // cout << "utilities[0]: " << utilities[0] << "\n";
     
     double A = exp(nestUtil + nlogitParams[8]*incVal);
     double B = exp(utilities[0]);
     double C = expUtilSum;
 
-    //printf("A: %lf. B: %lf. C: %lf.\n", A, B, C);
+    // printf("A: %lf. B: %lf. C: %lf.\n", A, B, C);
 
     // First entry is selection probability; second is its derivative
     pair<double, double> auctionResult;
     auctionResult.first = A/(1+A) * B/C;
     auctionResult.second = (  auctionResult.first * nlogitParams[1] * (B/(C*(1+A)) + 1/nlogitParams[8]*(1 - B/C)) );
     
-    //printf("prob: %lf. probDer: %lf.\n", auctionResult.first, auctionResult.second);
+    // printf("prob: %lf. probDer: %lf.\n", auctionResult.first, auctionResult.second);
     return( auctionResult );
 
 }
@@ -283,7 +291,7 @@ int main(){
     //// Part 2: simulate auctions for each bid in the data
 
     // Skip the header row and take the first bid
-    FILE* bidFile = fopen("synthdata-weights2.txt", "r");
+    FILE* bidFile = fopen("template_data.csv", "r");
     char line[10000];
     char *res = fgets(line, sizeof(line), bidFile); // Gets header line, which we ignore
 
@@ -336,21 +344,19 @@ int main(){
                 probSum += simulationResult.first;
                 probDerSum += simulationResult.second;
             }
-            //cout << (probSum / numAucSims) << "; " << (probDerSum / numAucSims) << "; " << (probSum / probDerSum) << "\n";
+            // cout << (probSum / numAucSims) << "; " << (probDerSum / numAucSims) << "; " << (probSum / probDerSum) << "\n";
             // Store the averages and calculate the implied cost
             simulatedProb[aucType].push_back( probSum / numAucSims );
             simulatedProbDeriv[aucType].push_back( probDerSum / numAucSims );
             costs[aucType].push_back( .85*( currentBid.amount + (probSum / probDerSum) ) );
         }
-        bidCount++;
-        
+        bidCount++;        
     }
 
-    // cout << simulatedProb[0][1] << "; " << simulatedProb[1][1] << "; " << simulatedProb[2][1] << "\n";
-    // cout << costs[0][1] << "\n";
+    cout << simulatedProb[0][1] << "; " << simulatedProb[1][1] << "; " << simulatedProb[2][1] << "\n";
+    cout << costs[0][1] << "\n";
 
     // Write probabilities, derivatives, and costs to a CSV file with 3*aucTraits.numAucTypes columns
-    // Note: this writes columns in reverse order compared to the original code
     ofstream outputFile;
     outputFile.open("costs.csv");
 
