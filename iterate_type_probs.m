@@ -108,7 +108,7 @@ for auc = auction_ids'
     % 2. Add avg_stype, avg_stype2, or 1 - avg_stype - avg_stype2 to the corresponding sum
     % Done: f initialized for step 2, then the loop takes care of step 1
     
-    % 3. Update auction type probabilities as exp(sum1 - max_sum) / \Sigma_i exp(sumi - max_sum)
+    % 3. Update auction type probabilities as exp(sum_1 - max_sum) / \Sigma_i exp(sum_i - max_sum)
     new_type_probs = exp(f - max(f)) ./ sum( exp(f - max(f)) );
     
     % 4. Calculate the difference between original and new auction type probabilities (to be

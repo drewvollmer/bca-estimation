@@ -19,6 +19,10 @@ assert(num_auc_types >= 2, 'Must have two or more auction types (unnecessary for
 
 
 %% Part 1: Import data
+%% Data format:
+%% Auction ID, Bid Type, Auction Observable Type, Bid, [Regressors]
+%% AucID, BidType, ObsAucType, BidAmount, [Regressors]
+
 %% TODO: Change to more general format from template data
 % Columns:     sscanf(line, "%d %d %d %d %d %d %d %d %d %d %lf %lf %d %lf",
 %           &b->bidreqId, &b->decNum,
@@ -47,7 +51,7 @@ sampled.bidder_type = sampled.sellRep - 7;
 type_probs = nan(length(sampled.bidder_type), num_auc_types);
 % Get quantiles of the bid data
 quantiles = linspace(0, 1, num_auc_types + 1); % this includes 0 and 1, which we don't want
-avgbid_cutoffs = quantile( sampled.avgbid, quantiles(2:(end - 1)) );
+avgbid_cutoffs = quantile( sampled.avgbid, quantiles(2:(end - 1)) ); % removes 0 and 1
 
 % Assign .75 of the probability to the range where the average bid falls and spread evenly elsewhere
 for i = 1:(num_auc_types - 1)

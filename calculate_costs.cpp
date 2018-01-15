@@ -224,19 +224,17 @@ pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderT
 
     // Traverse the array to add exp(utility) and find the max
     double expUtilSum = exp(utilities[0]);
-    double utilitiesMax = utilities[0];
     for(int i = 1; i < numOtherBids + 1; i++){
-        utilitiesMax = ( utilitiesMax < utilities[i] ? utilities[i] : utilitiesMax );
         expUtilSum += exp( utilities[i] );
     }
-    double incVal = log( expUtilSum / exp(utilitiesMax) ) + utilitiesMax;
+    double incVal = log( expUtilSum );
 
     // cout << "nestUtil: " << nestUtil << "; incVal: " << incVal << "; expUtilSum: " << expUtilSum << "\n";
     // cout << "utilities[0]: " << utilities[0] << "; utilitiesMax: " << utilitiesMax << "\n";
     
     double A = exp(nestUtil + nlogitParams[8]*incVal);
-    double B = exp(utilities[0] - utilitiesMax);
-    double C = expUtilSum / exp( utilitiesMax );
+    double B = exp(utilities[0]);
+    double C = expUtilSum;
 
     //printf("A: %lf. B: %lf. C: %lf.\n", A, B, C);
 
