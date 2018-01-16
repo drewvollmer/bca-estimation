@@ -2,21 +2,33 @@ README.md
 ---------
 
 
-# Instructions for Running
+# Instructions
 
-- Specify the number of unobserved auction types as a command-line
-argument to the shell file, or by editing the default number of types
-in the file
+1. Format the data.  Required columns:
+  - AuctionID, a unique integer ID for each auction
+  - BidderType, an integer labeling different sets of bidder traits.  No ordinal interpretation is required.
+  - OAucType, an integer grouping the auctions into types based on observed traits
+  - BidAmount, the quote given in each bid
+  - Decision, a 0/1 giving whether that bid was selected as the winner
+  - OverallDecision, a 0/1 taking a constant value in the auction and giving whether the procurer selected a bid to win (1) or picked the outside option instead (0)
 
-- Specify the desired selection model in estimate_bid_selection.do
+Other requirements for the data include:
+  - Additional variables used to model whether a bid was selected
+  - A row for each auction representing the outside option.  It can take value 0 for any bid-specific variables.
 
-- Modify the selection probability formula and derivative in
-  calculate_costs.cpp to match the selection model
+2. Select the number of unobserved auction types to be modeled.
+Implement as either a command-line argument to the shell file
+(e.g. `./run_bca_estimation.sh 3`) or edit the default number of types
+in the file.
 
-- Compile calculate_costs.cpp if edited: g++ calculate_costs.cpp -o
-  calculate_costs.exe
 
-- Run shell file, or the sequence of processes contained in it
+3. Implement a bid selection model.
+  - Change the selection model in `estimate_bid_selection.do`
+  - Modify the functions `getBidData` and `simulateAuction` in `calculate_costs.cpp` to reflect the data format and bid selection model
+
+4. Compile the modified version of `calculate_costs.cpp` with the command: `g++ calculate_costs.cpp -o calculate_costs.exe`
+
+5. Run the shell file, or the processes it contains: `./run_bca_estimation.sh [NumUnobsAucTypes]`
 
 
 
