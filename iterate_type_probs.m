@@ -12,17 +12,21 @@ bidder_types = unique(auctions.BidderType);
 % Remove negative types (used for outside option data)
 bidder_types = bidder_types( bidder_types >= 0 );
 
+% Get a unique set of observed auction types
+obs_auc_types = unique(auctions.OAucType);
 
 
-%%% Part 1: Estimate kernel densities
+%%% Part 1: Estimate kernel densities as a function of bidder types, observed auction types,
+%%% and unobserved auction types
 
 % Points to include for the density estimation
-%% TODO: can point selection be automated?
+%% TODO: automate point selection (can't do better than support of the data)
 points = (1:600)';
 
-% Instantiate a three-dimensional array: one dimension for bidder_types, another for cost types, and the
-% last for the number of density points to store
-densities = nan( length(bidder_types), length(type_probs(1, :)), length(points) );
+% Instantiate a four-dimensional array: need the bid distribution as a function of bid traits,
+% observed auction traits, unobserved auction traits, and the points at which we evaluate
+densities = nan( length(bidder_types), length(obs_auc_types), length(type_probs(1, :)), ...
+                 length(points) );
 
 % Define a lower bound for the probability in each density
 low_prob = 0.000001;
@@ -31,20 +35,27 @@ for bidder_type = bidder_types'
 
     % Create an index for the bids for this bidder_type
     is_current_bidder_type = (auctions.BidderType == bidder_type);
-
-    % Get the auction type probabilities for that bidder type
-    current_type_probs = type_probs( is_current_bidder_type, :);
     
-    % Prices are just given by bidAmt
-    prices = auctions.BidAmount(is_current_bidder_type);
+    for obs_auc_type = obs_auc_types'
+        
+        % Current sample: only take observations for the current bidder and observed auction type
+        current_sample = ( is_current_bidder_type & (auctions.OAucType == obs_auc_type) );
+        
+        % Get unobserved type probabilities and prices for the sample
+        current_type_probs = type_probs( current_sample, :);
+        prices = auctions.BidAmount(current_sample);
+        
+        % Run a kernel density to get the distribution of bids for this sample for each unobserved
+        % auction type, and store
+        for unobs_auc_type = 1:length(type_probs(1, :))
+            [f_cost, ~] = ksdensity(prices, points, 'support', [min(points) - 1, max(points)], ...
+                                    'width', 0.1, 'weights', current_type_probs(:, unobs_auc_type));
+            f_cost( f_cost < low_prob ) = low_prob;
+            densities(bidder_type, obs_auc_type, unobs_auc_type, :) = f_cost;
+        end    
+        
+    end
 
-    % Run a kernel density weighted by each set of type probabilities and store
-    for auc_type = 1:length(type_probs(1, :))
-        [f_cost, ~] = ksdensity(prices, points, 'support', [min(points) - 1, max(points)], 'width', 0.1, 'weights', ...
-                                current_type_probs(:, auc_type));
-        f_cost( f_cost < low_prob ) = low_prob;
-        densities(bidder_type, auc_type, :) = f_cost;               
-    end    
 end
 % Remove now unnecessary objects
 clear is_current_bidder_type f_cost current_type_probs prices
@@ -83,7 +94,7 @@ for auc = auction_ids'
     %% Note: need BidAmount(bid) + 1 to match original code.  Not clear if this is correct.  It depends
     %% whether the density on [0, 600] excludes 0 or 600. (Resulting error would be quite small.)
     for bid = 2:length(auc_bids.AuctionID)
-        auction_density(bid - 1, :) = densities(auc_bids.BidderType(bid), :, auc_bids.BidAmount(bid) + 1 ); % subtract 1 for bidder_type
+        auction_density(bid - 1, :) = densities(auc_bids.BidderType(bid), auc_bids.OAucType(bid), :, auc_bids.BidAmount(bid) + 1 ); % subtract 1 for bidder_type
     end
     % Define a vector f (following original programs) to store log all sums
     f = log( avg_type_probs ) + sum(log(auction_density));

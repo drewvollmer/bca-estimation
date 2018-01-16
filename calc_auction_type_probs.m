@@ -74,47 +74,60 @@ end
 
 %% Part 3: use converged probabilities to write inverse CDF
 
-% Get bidder types
+% Get a unique set of bidder types
 bidder_types = unique(data.BidderType);
-% Remove neagtive bidder types (from outside option)
+% Remove negative types (used for outside option data)
 bidder_types = bidder_types( bidder_types >= 0 );
 
+% Get a unique set of observed auction types
+obs_auc_types = unique(data.OAucType);
+
 % Points to include for the density estimation
+%% TODO: automate
 points = (1:600)';
 % Probabilities for inverse CDFs: always take 1000 samples
 probabilities = linspace(0, 1, 1000);
 
-% Instantiate a three-dimensional array: one dimension for bidder_types, another for cost types, and the
-% last for the number of CDF points to store
-inv_cdfs = nan( length(bidder_types), NumUAucTypes, length(probabilities) );
+% Instantiate a four-dimensional array: need the bid distribution as a function of bid traits,
+% observed auction traits, unobserved auction traits, and the points at which we evaluate
+inv_cdfs = nan( length(bidder_types), length(obs_auc_types), NumUAucTypes, length(probabilities) );
 
 for bidder_type = bidder_types'
 
     % Create an index for the bids for this bidder_type
     is_current_bidder_type = (data.BidderType == bidder_type);
-
-    % Get the auction type probabilities for that bidder type
-    current_type_probs = type_probs( is_current_bidder_type, :);
     
-    % Prices are just given by bidAmt
-    prices = data.BidAmount(is_current_bidder_type);
+    for obs_auc_type = obs_auc_types'
 
-    % Estimate and store the inverse CDF
-    for auc_type = 1:length(type_probs(1, :))
-        [invF, ~] = ksdensity(prices, probabilities, 'support', [min(points) - 1, max(points)], 'width', ...
-                                0.1, 'weights', current_type_probs(:, auc_type), 'function', 'icdf');
-        inv_cdfs(bidder_type, auc_type, :) = invF;
+        % Current sample: only take observations for the current bidder and observed auction type
+        current_sample = ( is_current_bidder_type & (data.OAucType == obs_auc_type) );
+
+        % Get unobserved type probabilities and prices for the sample
+        current_type_probs = type_probs( current_sample, :);
+        prices = data.BidAmount(current_sample);
+
+        % Estimate and store the inverse CDF
+        for unobs_auc_type = 1:length(type_probs(1, :))
+            [invF, ~] = ksdensity(prices, probabilities, 'support', [min(points) - 1, max(points)], 'width', ...
+                                  0.1, 'weights', current_type_probs(:, unobs_auc_type), 'function', 'icdf');
+            inv_cdfs(bidder_type, obs_auc_type, unobs_auc_type, :) = invF;
+        end
+        
     end
+    
 end
 
-%% Write the inverse CDFs to one file for each bidder type
+%% Write the inverse CDFs to one file for each bidder type/observed auction type pair
 for bidder_type = bidder_types'
-    fid = fopen(sprintf('inv_cdf_%d.csv', bidder_type), 'w');
-    fprintf(fid, strcat(repmat('type_%d_prob, ', 1, NumUAucTypes - 1), ' type_%d_prob\n'), 1:NumUAucTypes);
-    for i = 1:length(inv_cdfs(bidder_type, 1, :))
-        fprintf(fid, strcat(repmat('%1.8f, ', 1, NumUAucTypes - 1), ' %1.8f\n'), inv_cdfs(bidder_type,:, i));
+    for obs_auc_type = obs_auc_types'
+        fid = fopen(sprintf('inv_cdf_bid%d_obsat%d.csv', bidder_type, obs_auc_type), 'w');
+        fprintf(fid, strcat(repmat('type_%d_prob, ', 1, NumUAucTypes - 1), ' type_%d_prob\n'), 1:NumUAucTypes);
+        for i = 1:length(inv_cdfs(bidder_type, obs_auc_type, 1, :))
+            fprintf(fid, strcat(repmat('%1.8f, ', 1, NumUAucTypes - 1), ' %1.8f\n'), ...
+                    inv_cdfs(bidder_type, obs_auc_type, :, i));
+        end
+        fclose(fid);
     end
-    fclose(fid);    
 end
 
 % %% Write bid data to a file (if transformation is necessary)
