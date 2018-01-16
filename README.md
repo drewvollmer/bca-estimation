@@ -24,7 +24,7 @@ in the file.
 
 3. Implement a bid selection model.
   - Change the selection model in `estimate_bid_selection.do`
-  - Modify the functions `getBidData` and `simulateAuction` in `calculate_costs.cpp` to reflect the data format and bid selection model
+  - Modify the Bid struct definition and the functions `getBidData` and `simulateAuction` in `calculate_costs.cpp` to reflect the data format and bid selection model
 
 4. Compile the modified version of `calculate_costs.cpp` with the command: `g++ calculate_costs.cpp -o calculate_costs.exe`
 

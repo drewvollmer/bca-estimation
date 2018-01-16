@@ -18,6 +18,13 @@
 using namespace std;
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//// INSTRUCTIONS                                                                                  //
+//// Change the Bid struct definition, the getBidData() function, and the simulateAuction()        //
+//// function to fit the data and bid selection model.  Everything else should stay the same.      //
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
 
 ////////////////////////////////////////////////////////////
@@ -34,7 +41,6 @@ typedef struct {
     int obsAucType;
     bool isLastBid; // Tells if this bid is the last one in the file
 } Bid;
-
 
 // Auction traits class storing the number of types used in the auction
 // (Inferred from data files in getAucTraits() at runtime.)
@@ -171,6 +177,7 @@ vector<double> importNLogitParams(){
     return( nlogitParams );
 }
 
+
 // Get bid data for the next bid in the file. Works by taking in an object referring to the file, then
 // extracting the next line (bid) and processing it.  Returns a Bid object.
 Bid getBidData(FILE *bidFile){
@@ -196,6 +203,7 @@ Bid getBidData(FILE *bidFile){
     return( currentBid );
 
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////////
 //// Analysis functions: simulate the result of an auction for an input bid

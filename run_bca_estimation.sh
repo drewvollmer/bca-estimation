@@ -10,7 +10,6 @@ cd `dirname $0`
 rm inv_cdf*.csv
 rm costs.csv
 rm coeff.txt
-rm synthdata-weights2.txt
 
 
 # Calculate the distribution of bids for each type of auction, taking
