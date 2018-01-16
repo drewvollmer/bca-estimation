@@ -1,4 +1,4 @@
-// calculate_costs.cc
+// calculate_costs.cpp
 // Simulate auctions for each bid; use the resulting choice probabilities to infer seller costs
 // Drew Vollmer 2017-12-22
 
@@ -31,6 +31,7 @@ typedef struct {
     int numReps;
     int previousAuctions;
     int previousCancels;
+    int obsAucType;
     bool isLastBid; // Tells if this bid is the last one in the file
 } Bid;
 
@@ -39,7 +40,8 @@ typedef struct {
 // (Inferred from data files in getAucTraits() at runtime.)
 typedef struct {
     int numBidderTypes;
-    int numAucTypes;
+    int numObsAucTypes;
+    int numUnobsAucTypes;
 } AucTraits;
 
 
@@ -55,25 +57,25 @@ AucTraits getAucTraits(){
     // Declare variable to return
     AucTraits aucTraits;
 
-    // Assuming CDFs are in files of the form "inv_cdf_[0-9].csv", one for each type of bidder, find the number of bidders
-    // and thus the number of files to import
-    int numFiles = 0;
+    // Assuming CDFs are in files of the form "inv_cdf_bid[0-9]_obsat[0-9].csv", find the number of bidders
+    // and thus the number of files to import. (CDF files are for pairs of bidder types and observed auction types.)
+    int numBidderTypes = 0;
     char fileName[50];
     size_t numCols;
 
     // Strategy: count the files that exist and break after the first file that does not exist
     while(true){
-        sprintf(fileName, "inv_cdf_%d.csv", numFiles + 1);
+        sprintf(fileName, "inv_cdf_bid%d_obsat1.csv", numBidderTypes + 1);
         ifstream infile(fileName);
         if( infile.good() ){
             // Increase number of files found
-            numFiles++;
+            numBidderTypes++;
 
-            // Use the first file to get the number of columns in the data
-            if( numFiles == 1 ){
+            // Use the first file to get the number of columns in the data (unobserved auction types)
+            if( numBidderTypes == 1 ){
                 string firstLine;
                 getline(infile, firstLine);
-                aucTraits.numAucTypes = count(firstLine.begin(), firstLine.end(), ',') + 1;
+                aucTraits.numUnobsAucTypes = count(firstLine.begin(), firstLine.end(), ',') + 1;
             }
                 
         } else {
@@ -81,7 +83,24 @@ AucTraits getAucTraits(){
         }
     }
 
-    aucTraits.numBidderTypes = numFiles;
+    // After finding the number of bidder types, do the same thing to find the number of observed
+    // auction types
+    int numObsAucTypes = 0;
+    while(true){
+        sprintf(fileName, "inv_cdf_bid1_obsat%d.csv", numObsAucTypes + 1);
+        ifstream infile(fileName);
+        if( infile.good() ){
+            // Increase number of files found
+            numObsAucTypes++;                
+        } else {
+            break;
+        }
+    }
+    
+    
+    aucTraits.numBidderTypes = numBidderTypes;
+    aucTraits.numObsAucTypes = numObsAucTypes;
+    // cout << "Bidder types: " << numBidderTypes << "; Observed auction types: " << numObsAucTypes << "; Unobserved auction types: " << aucTraits.numUnobsAucTypes << "\n";
     return( aucTraits );
 }
 
@@ -89,7 +108,7 @@ AucTraits getAucTraits(){
 // Import inverse CDFs
 // Note that this function returns void, not the invCDFs 3D vector because of its size.  Instead,
 // the function returns void and fills in the vector using a reference to its memory address.
-void importInverseCDFs(vector< vector< vector<double> > >& invCDFs, AucTraits aucTraits){
+void importInverseCDFs(vector< vector< vector< vector<double> > > >& invCDFs, AucTraits aucTraits){
 
     // Loop over all files; start by initializing variables used in the loops
     int lineNum;
@@ -98,29 +117,31 @@ void importInverseCDFs(vector< vector< vector<double> > >& invCDFs, AucTraits au
     string line;
     
     for(int i = 0; i < aucTraits.numBidderTypes; i++){
+        for(int j = 0; j < aucTraits.numObsAucTypes; j++){
 
-        // Get file name using current name index
-        sprintf(fileName, "inv_cdf_%d.csv", i + 1);
+            // Get file name using current name index
+            sprintf(fileName, "inv_cdf_bid%d_obsat%d.csv", i + 1, j + 1);
 
-        // Use ifstream to handle the unknown (at compile time) number of columns
-        ifstream infile(fileName);
-        // Ignore the first (header) row
-        getline(infile, line);
+            // Use ifstream to handle the unknown (at compile time) number of columns
+            ifstream infile(fileName);
+            // Ignore the first (header) row
+            getline(infile, line);
         
-        // Use a double-loop over known dimensions to fill in invCDFs[i]
-        for(int row = 0; row < 1000; row++){
-            for( int currentCol = 0; currentCol < aucTraits.numAucTypes; currentCol++){
+            // Use a double-loop over known dimensions to fill in invCDFs[i][j]
+            for(int row = 0; row < 1000; row++){
+                for( int currentCol = 0; currentCol < aucTraits.numUnobsAucTypes; currentCol++){
 
-                // Read the [i][currentCol][row] entry from the file
-                infile >> stringToRead;
+                    // Read the [i][currentCol][row] entry from the file
+                    infile >> stringToRead;
 
-                // Remove trailing commas, if there are any
-                stringToRead.erase( remove(stringToRead.begin(), stringToRead.end(), ','), stringToRead.end() );
-                // Convert to double and insert into invCDFs vector
-                invCDFs[i][currentCol][row] = atof( stringToRead.c_str() );
+                    // Remove trailing commas, if there are any
+                    stringToRead.erase( remove(stringToRead.begin(), stringToRead.end(), ','), stringToRead.end() );
+                    // Convert to double and insert into invCDFs vector
+                    invCDFs[i][j][currentCol][row] = atof( stringToRead.c_str() );
+                }
             }
+            // Finished processing the current file; next loop iteration handles the next file
         }
-        // Finished processing the current file; next loop iteration handles the next file
     }
 
 }
@@ -161,23 +182,16 @@ Bid getBidData(FILE *bidFile){
     Bid currentBid;
     currentBid.isLastBid = !res;
     // Also declare placeholder variables to be read into that we don't care about
-    int intToIgnore[11];
-    double doubleToIgnore[2];
+    int intToIgnore[4];
 
     // Order and usage of data:
     // AuctionID (ignored), BidderType (ignored), ObservedAucType, BidAmount (used),
     // Decision (ignored), OverallDecision (ignored), [Regressors] (used)
     sscanf(line, "%d, %d, %d, %lf, %d, %d, %d, %d, %d, %d, %d",
-           &intToIgnore[0], &currentBid.bidderType, &intToIgnore[1], &currentBid.amount,
-           &intToIgnore[2], &intToIgnore[3], &currentBid.sumRep, &currentBid.numReps,
-           &currentBid.previousAuctions, &currentBid.previousCancels, &intToIgnore[4]);
+           &intToIgnore[0], &currentBid.bidderType, &currentBid.obsAucType, &currentBid.amount,
+           &intToIgnore[1], &intToIgnore[2], &currentBid.sumRep, &currentBid.numReps,
+           &currentBid.previousAuctions, &currentBid.previousCancels, &intToIgnore[3]);
     // cout << currentBid.amount << "; " << currentBid.sumRep << "; " << currentBid.numReps << "; " << currentBid.previousAuctions << "; " << currentBid.previousCancels << "; " << currentBid.bidderType << "\n";
-    // // Line structure: BidRequestID, DecisionNum, Decision, OverallDecision, SumRep, NumReps, PreviousBids,
-    // // PreviousCancels, NumBids, TrueType, AvgBid, Cost, SellRep, BidAmount
-    // sscanf(line, "%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %lf, %lf, %d, %lf, %d",
-    //        &intToIgnore[0], &intToIgnore[1], &intToIgnore[2], &intToIgnore[3], &currentBid.sumRep, &currentBid.numReps,
-    //        &currentBid.previousAuctions, &currentBid.previousCancels, &intToIgnore[8], &intToIgnore[9], &doubleToIgnore[0],
-    //        &doubleToIgnore[1], &intToIgnore[10], &currentBid.amount, &currentBid.bidderType);
 
     return( currentBid );
 
@@ -188,7 +202,8 @@ Bid getBidData(FILE *bidFile){
 
 // simulateAuction returns the probability that the input bid is selected in a simulated
 // auction and the derivative of the probability.  Both are used to calculate costs.
-pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderTypes, vector< vector< vector<double> > >& invCDFs,
+pair<double, double> simulateAuction(Bid currentBid, int uAucType, int numBidderTypes,
+                                     vector< vector< vector< vector<double> > > >& invCDFs,
                                      vector<double>& nlogitParams){
 
     int numOtherBids = 9;
@@ -203,8 +218,8 @@ pair<double, double> simulateAuction(Bid currentBid, int aucType, int numBidderT
     bids[0] = currentBid.amount;
     for(int i = 1; i < numOtherBids + 1; i++){
         bidTypes[i] = random() % numBidderTypes;
-        bids[i] = invCDFs[bidTypes[i]][aucType][random() % 1000];
-        // cout << aucType << "; " << bidTypes[i] << "; " << bids[i] << "\n";
+        bids[i] = invCDFs[bidTypes[i]][currentBid.obsAucType - 1][uAucType][random() % 1000];
+        // cout << uAucType << "; " << bidTypes[i] << "; " << bids[i] << "\n";
     }
 
 
@@ -270,15 +285,18 @@ int main(){
     // Use the getAucTraits function to get the number of bidder and auction types
     AucTraits aucTraits;
     aucTraits = getAucTraits();
-    if( (aucTraits.numBidderTypes == 0) | (aucTraits.numAucTypes == 0) ){
+    if( (aucTraits.numBidderTypes == 0) | (aucTraits.numUnobsAucTypes == 0) ){
         cout << "Error: zero bidder or auction types.\n";
         return(1);
     }
 
-    // Import inverse CDF functions into a bidder_types x auction_types x 1000 vector (not an array since dimensions are unknown
-    // at compile time)
-    vector< vector< vector<double> > > invCDFs( aucTraits.numBidderTypes,
-                                                vector< vector<double> >(aucTraits.numAucTypes, vector<double>(1000, 0)) );
+    // Import inverse CDF functions into a bidder_types x ObsAucTypes x UnobsAucTypes x 1000 vector
+    // (not an array since dimensions are unknown at compile time)
+    // vector< vector< vector<double> > > invCDFs( aucTraits.numBidderTypes,
+    //                                             vector< vector<double> >(aucTraits.numUnobsAucTypes, vector<double>(1000, 0)) );
+    vector< vector< vector< vector<double> > > > invCDFs( aucTraits.numBidderTypes,
+                    vector< vector< vector<double> > >(aucTraits.numObsAucTypes,
+                                                    vector< vector<double> >(aucTraits.numUnobsAucTypes, vector<double>(1000, 0)) ) );
     // Use a function (returning void) to import data to the invCDFs vector. Pass in the whole vector, but the function only
     // works with a reference to the memory address
     importInverseCDFs(invCDFs, aucTraits);
@@ -306,9 +324,9 @@ int main(){
     double probDerSum;
     pair<double, double> simulationResult;
     vector<double> emptyVec;
-    vector< vector<double> > simulatedProb( aucTraits.numAucTypes, emptyVec );
-    vector< vector<double> > simulatedProbDeriv( aucTraits.numAucTypes, emptyVec );
-    vector< vector<double> > costs( aucTraits.numAucTypes, emptyVec );
+    vector< vector<double> > simulatedProb( aucTraits.numUnobsAucTypes, emptyVec );
+    vector< vector<double> > simulatedProbDeriv( aucTraits.numUnobsAucTypes, emptyVec );
+    vector< vector<double> > costs( aucTraits.numUnobsAucTypes, emptyVec );
 
     // Debugging: only run for the first 11 bids
     int bidCount = 0;
@@ -324,13 +342,13 @@ int main(){
         currentBid = getBidData(bidFile);
         
         // Simulate the bid 1,000 times for each auction type
-        for(int aucType = 0; aucType < aucTraits.numAucTypes; aucType++){
+        for(int uAucType = 0; uAucType < aucTraits.numUnobsAucTypes; uAucType++){
 
             // Skip if this is a header bid with amount 0, but insert placeholders for all vectors
             if( currentBid.amount == 0 ){
-                simulatedProb[aucType].push_back( -99 );
-                simulatedProbDeriv[aucType].push_back( -99 );
-                costs[aucType].push_back( -99 );
+                simulatedProb[uAucType].push_back( -99 );
+                simulatedProbDeriv[uAucType].push_back( -99 );
+                costs[uAucType].push_back( -99 );
                 continue;
             }
             
@@ -340,33 +358,30 @@ int main(){
 
             // Simulate results from the current bid numAucSims times, getting the selection probability and its derivative
             for(int i = 0; i < numAucSims; i++){
-                simulationResult = simulateAuction(currentBid, aucType, aucTraits.numBidderTypes, invCDFs, nlogitParams);
+                simulationResult = simulateAuction(currentBid, uAucType, aucTraits.numBidderTypes, invCDFs, nlogitParams);
                 probSum += simulationResult.first;
                 probDerSum += simulationResult.second;
             }
             // cout << (probSum / numAucSims) << "; " << (probDerSum / numAucSims) << "; " << (probSum / probDerSum) << "\n";
             // Store the averages and calculate the implied cost
-            simulatedProb[aucType].push_back( probSum / numAucSims );
-            simulatedProbDeriv[aucType].push_back( probDerSum / numAucSims );
-            costs[aucType].push_back( .85*( currentBid.amount + (probSum / probDerSum) ) );
+            simulatedProb[uAucType].push_back( probSum / numAucSims );
+            simulatedProbDeriv[uAucType].push_back( probDerSum / numAucSims );
+            costs[uAucType].push_back( .85*( currentBid.amount + (probSum / probDerSum) ) );
         }
         bidCount++;        
     }
 
-    cout << simulatedProb[0][1] << "; " << simulatedProb[1][1] << "; " << simulatedProb[2][1] << "\n";
-    cout << costs[0][1] << "\n";
-
-    // Write probabilities, derivatives, and costs to a CSV file with 3*aucTraits.numAucTypes columns
+    // Write probabilities, derivatives, and costs to a CSV file with 3*aucTraits.numUnobsAucTypes columns
     ofstream outputFile;
     outputFile.open("costs.csv");
 
     for(int i = 0; i < simulatedProb[0].size(); i++){
-        for(int aucType = 0; aucType < aucTraits.numAucTypes; aucType++){
-            if(aucType > 0){
+        for(int uAucType = 0; uAucType < aucTraits.numUnobsAucTypes; uAucType++){
+            if(uAucType > 0){
                 outputFile << ", ";
             }
-            outputFile << simulatedProb[aucType][i] << ", " << simulatedProbDeriv[aucType][i] << ", " <<
-                costs[aucType][i];
+            outputFile << simulatedProb[uAucType][i] << ", " << simulatedProbDeriv[uAucType][i] << ", " <<
+                costs[uAucType][i];
         }
         outputFile << "\n";
     }
