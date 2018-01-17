@@ -1,20 +1,31 @@
-// calculate_costs.cpp
-// Simulate auctions for each bid; use the resulting choice probabilities to infer seller costs
-// Compiled as: g++ -o calculate_costs.exe calculate_costs.cpp bid_selection.cpp
-// Drew Vollmer 2017-12-22
+// debug_bid_selection.cpp
+// A diagnostic for the functions modified in bid_selection.cpp so that they can be checked
+// during editing.  This file uses many of the building blocks of calculate_costs.cpp, such
+// as routines to import data.
+// Drew Vollmer 2018-01-17
 
-// Libraries imported in bid_selection.hpp
+
+// // Other headers
+// #include <stdio.h>
+// #include <iostream> // for cout
+// #include <math.h>
+// #include <stdlib.h>
+// #include <assert.h>
+// #include <strings.h>
+// #include <cstring>
+// #include <fstream> // for infile()
+// #include <algorithm> // to count character occurrences in string: std::count() (also for some string methods)
+// #include <vector> // For vector class
+
 #include "bid_selection.hpp"
+
 
 // Use standard namespace: can call cout and vector rather than std::cout and std::vector
 using namespace std;
 
+
 ////////////////////////////////////////////////////////////
 //// Class definitions
-
-
-// Bid defined in bid_selection.hpp
-
 
 // Auction traits class storing the number of types used in the auction
 // (Inferred from data files in getAucTraits() at runtime.)
@@ -152,19 +163,9 @@ vector<double> importNLogitParams(){
 }
 
 
-
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-///// Main Program
-// Strategy: import all data, then simulate 1000 auctions for each bid and each auction type. Use the mean
-// results of the auction to find true selection probabilities and derivatives, then use those to infer
-// seller costs.
 int main(){
 
-    //////////////////////////////////////////////////////////////////////////////
-    //// Part 1: Import inverse CDFs and nested logit parameters
-    
+    // Set up using import routines
     // Use the getAucTraits function to get the number of bidder and auction types
     AucTraits aucTraits;
     aucTraits = getAucTraits();
@@ -188,9 +189,9 @@ int main(){
     vector<double> nlogitParams = importNLogitParams();
 
 
-    ///////////////////////////////////////////////////////////////////////////////
-    //// Part 2: simulate auctions for each bid in the data
-
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //// Debugging
+    
     // Skip the header row and take the first bid
     FILE* bidFile = fopen("template_data.csv", "r");
     char line[10000];
@@ -200,8 +201,6 @@ int main(){
     Bid currentBid;
     currentBid.isLastBid = false;
 
-    // Number of times to simulate the auction
-    int numAucSims = 1000;
     // Variables to calculate and store simulation outcomes
     double probSum;
     double probDerSum;
@@ -213,64 +212,24 @@ int main(){
 
     // Debugging: only run for the first 11 bids
     int bidCount = 0;
-    // // DEBUGGING: Only run a single simulated auction with a known outcome
-    // currentBid = getBidData(bidFile);
-    // currentBid = getBidData(bidFile);
-    // simulationResult = simulateAuction(currentBid, 0, aucTraits.numBidderTypes, invCDFs, nlogitParams);
-    // simulationResult = simulateAuction(currentBid, 1, aucTraits.numBidderTypes, invCDFs, nlogitParams);
-    // simulationResult = simulateAuction(currentBid, 2, aucTraits.numBidderTypes, invCDFs, nlogitParams);
-    
+
     while( ! currentBid.isLastBid ){
 
         currentBid = getBidData(bidFile);
+
+        for(int j = 0; j < aucTraits.numUnobsAucTypes; j++){
+            simulationResult = simulateAuction(currentBid, j, aucTraits.numBidderTypes, invCDFs, nlogitParams);
+        }
+
+        if( bidCount > 10 ){
+            break;
+        }
         
-        // Simulate the bid 1,000 times for each auction type
-        for(int uAucType = 0; uAucType < aucTraits.numUnobsAucTypes; uAucType++){
+        bidCount++;
 
-            // Skip if this is a header bid with amount 0, but insert placeholders for all vectors
-            if( currentBid.amount == 0 ){
-                simulatedProb[uAucType].push_back( -99 );
-                simulatedProbDeriv[uAucType].push_back( -99 );
-                costs[uAucType].push_back( -99 );
-                continue;
-            }
-            
-            // Reset simulation summary variables
-            probSum = 0;
-            probDerSum = 0;
-
-            // Simulate results from the current bid numAucSims times, getting the selection probability and its derivative
-            for(int i = 0; i < numAucSims; i++){
-                simulationResult = simulateAuction(currentBid, uAucType, aucTraits.numBidderTypes, invCDFs, nlogitParams);
-                probSum += simulationResult.first;
-                probDerSum += simulationResult.second;
-            }
-            // cout << (probSum / numAucSims) << "; " << (probDerSum / numAucSims) << "; " << (probSum / probDerSum) << "\n";
-            // Store the averages and calculate the implied cost
-            simulatedProb[uAucType].push_back( probSum / numAucSims );
-            simulatedProbDeriv[uAucType].push_back( probDerSum / numAucSims );
-            costs[uAucType].push_back( .85*( currentBid.amount + (probSum / probDerSum) ) );
-        }
-        bidCount++;        
     }
-
-    // Write probabilities, derivatives, and costs to a CSV file with 3*aucTraits.numUnobsAucTypes columns
-    ofstream outputFile;
-    outputFile.open("costs.csv");
-
-    for(int i = 0; i < simulatedProb[0].size(); i++){
-        for(int uAucType = 0; uAucType < aucTraits.numUnobsAucTypes; uAucType++){
-            if(uAucType > 0){
-                outputFile << ", ";
-            }
-            outputFile << simulatedProb[uAucType][i] << ", " << simulatedProbDeriv[uAucType][i] << ", " <<
-                costs[uAucType][i];
-        }
-        outputFile << "\n";
-    }
-    outputFile.close();
-
     
     // Program finished execution: return normal exit code 0
     return 0;
 }
+

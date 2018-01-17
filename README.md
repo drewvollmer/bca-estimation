@@ -24,9 +24,9 @@ in the file.
 
 3. Implement a bid selection model.
   - Change the selection model in `estimate_bid_selection.do`
-  - Modify the Bid struct definition and the functions `getBidData` and `simulateAuction` in `calculate_costs.cpp` to reflect the data format and bid selection model
+  - Modify the functions and Bid class definition in `bid_selection.cpp` to reflect the data format and bid selection model.  To make it easier to write the functions, you can use the debugging tool `debug_bid_selection.cpp`, which runs each of the defined functions several times.  It can be compiled as `g++ -o debug_bid_selection.exe debug_bid_selection.cpp bid_selection.cpp`
 
-4. Compile the modified version of `calculate_costs.cpp` with the command: `g++ calculate_costs.cpp -o calculate_costs.exe`
+4. Compile the modified version of `calculate_costs.cpp` with the command: `g++ -o calculate_costs.exe calculate_costs.cpp bid_selection.cpp`
 
 5. Run the shell file, or the processes it contains: `./run_bca_estimation.sh [NumUnobsAucTypes]`
 

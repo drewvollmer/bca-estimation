@@ -30,6 +30,6 @@ fi
 estimate_bid_selection.do
 
 # Use selection probabilities to solve for bidder costs
-# Compile if necessary:
-# g++ calculate_costs.cpp -o calculate_costs.exe
+# To compile:
+# g++ -o calculate_costs.exe calculate_costs.cpp bid_selection.cpp
 ./calculate_costs.exe
