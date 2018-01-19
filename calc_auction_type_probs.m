@@ -83,8 +83,8 @@ bidder_types = bidder_types( bidder_types >= 0 );
 obs_auc_types = unique(data.OAucType);
 
 % Points to include for the density estimation
-%% TODO: automate
-points = (1:600)';
+points = linspace(max(1, min(data.BidAmount(data.BidAmount >= 0)) - 10), ...
+                  1.05*max(data.BidAmount), 1000)';
 % Probabilities for inverse CDFs: always take 1000 samples
 probabilities = linspace(0, 1, 1000);
 

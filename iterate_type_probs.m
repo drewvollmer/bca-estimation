@@ -5,8 +5,6 @@
 
 function [conv_metric, updated_type_probs] = iterate_type_probs(auctions, type_probs)
 
-%% To fix: bidder types, cost types, and density points are hard-coded.
-    
 % Get a unique set of bidder types
 bidder_types = unique(auctions.BidderType);
 % Remove negative types (used for outside option data)
@@ -19,9 +17,9 @@ obs_auc_types = unique(auctions.OAucType);
 %%% Part 1: Estimate kernel densities as a function of bidder types, observed auction types,
 %%% and unobserved auction types
 
-% Points to include for the density estimation
-%% TODO: automate point selection (can't do better than support of the data)
-points = (1:600)';
+% Points to include for the density estimation (exclude outside option from min and max)
+points = linspace(max(1, min(auctions.BidAmount(auctions.BidAmount >= 0)) - 10), ...
+                  1.05*max(auctions.BidAmount), 1000)';
 
 % Instantiate a four-dimensional array: need the bid distribution as a function of bid traits,
 % observed auction traits, unobserved auction traits, and the points at which we evaluate
@@ -81,20 +79,18 @@ for auc = auction_ids'
     % Get all bids in this auction (stored as a table)
     auc_index = (auctions.AuctionID == auc);
     auc_bids = auctions( auc_index, :);
+    % And find which bids aren't for the outside option
+    inside_bids = find( auc_bids.BidAmount >= 0 );
 
-
-    % Add the density corresponding to each bid and cost type:
-    % Need to access the bidder_type for each bid and add the density at the bid amount for that bidder_type to
-    % the sums
-    % bidder_type vector: auc_bids.BidderType; amount vector: auc_bids.BidAmount
-    %sub2ind(size(densities), auc_bids.BidderType, :, auc_bids.BidAmount);
-    % Loop excludes the first bid, which here has no true bidder_type
-    auction_density = nan( length(auc_bids.BidderType) - 1, 3 ); % subtract 1 since the first entry is
-                                                                 % not used
-    %% Note: need BidAmount(bid) + 1 to match original code.  Not clear if this is correct.  It depends
-    %% whether the density on [0, 600] excludes 0 or 600. (Resulting error would be quite small.)
-    for bid = 2:length(auc_bids.AuctionID)
-        auction_density(bid - 1, :) = densities(auc_bids.BidderType(bid), auc_bids.OAucType(bid), :, auc_bids.BidAmount(bid) + 1 ); % subtract 1 for bidder_type
+    % Get the density for each inside option bid for each type of auction and add them together
+    auction_density = nan( length(inside_bids), length(type_probs(1, :)) );
+    row = 1;
+    for bid = inside_bids'
+        % Get the closest entry in the density
+        density_index = max(round( length(points) .* (auc_bids.BidAmount(bid) - min(points)) ./ ...
+                                   (max(points) - min(points)) ), 1);
+        auction_density(row, :) = densities(auc_bids.BidderType(bid), auc_bids.OAucType(bid), :, density_index );
+        row = row + 1;
     end
     % Define a vector f (following original programs) to store log all sums
     f = log( avg_type_probs ) + sum(log(auction_density));
