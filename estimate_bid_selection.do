@@ -24,6 +24,9 @@ label variable buyrep "sumrep/numreps if numreps != 0, else 0"
 gen lnprevcancel = ln(previouscancels+1)
 label variable lnprevcancel "ln(previouscancels+1)"
 
+/* Create ID within auctions */
+by auctionid: gen decisionno = _n
+
 /* Define nest for nested logit: observations with decisiontype 1 and */
 /* decisiontype 2 are contained in different nests */
 nlogitgen type = decisiontype(1, 2)

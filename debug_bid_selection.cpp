@@ -137,31 +137,6 @@ void importInverseCDFs(vector< vector< vector< vector<double> > > >& invCDFs, Au
 
 }
 
-// Import nested logit parameters
-vector<double> importNLogitParams(){
-
-    ifstream infile("coeff.txt");
-    string line;
-    // Ignore the first (header) row
-    getline(infile, line);
-    int numCols = count(line.begin(), line.end(), '\t') + 1;
-
-    string toInsert;
-    vector<double> nlogitParams(numCols, 0);
-
-    for(int i = 0; i < numCols; i++){
-        infile >> toInsert;
-        // Ignore the first entry, y1 (string.compare() returns 0 for a match)
-        if( toInsert.compare("y1") == 0 ){
-            continue;
-        }
-        // Use atof() and .c_str() to convert string to double
-        nlogitParams[i] = atof(toInsert.c_str());
-    }
-
-    return( nlogitParams );
-}
-
 
 int main(){
 
@@ -185,12 +160,16 @@ int main(){
     // works with a reference to the memory address
     importInverseCDFs(invCDFs, aucTraits);
 
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //// Debugging: parameter import
+    
     // Import parameters as a vector (this restricts hard-coded changes to the function where they're used)
-    vector<double> nlogitParams = importNLogitParams();
+    BidSelectionParams nlp = getBidSelectionParams();
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //// Debugging
+    //// Debugging: bid import and auction simulation
     
     // Skip the header row and take the first bid
     FILE* bidFile = fopen("template_data.csv", "r");
@@ -218,7 +197,7 @@ int main(){
         currentBid = getBidData(bidFile);
 
         for(int j = 0; j < aucTraits.numUnobsAucTypes; j++){
-            simulationResult = simulateAuction(currentBid, j, aucTraits.numBidderTypes, invCDFs, nlogitParams);
+            simulationResult = simulateAuction(currentBid, j, aucTraits.numBidderTypes, invCDFs, nlp);
         }
 
         if( bidCount > 10 ){

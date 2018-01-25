@@ -24,7 +24,8 @@ in the file.
 
 3. Implement a bid selection model.
   - Change the selection model in `estimate_bid_selection.do`
-  - Modify the functions and Bid class definition in `bid_selection.cpp` to reflect the data format and bid selection model.  To make it easier to write the functions, you can use the debugging tool `debug_bid_selection.cpp`, which runs each of the defined functions several times.  It can be compiled as `g++ -o debug_bid_selection.exe debug_bid_selection.cpp bid_selection.cpp`
+  - Modify the functions in `bid_selection.cpp` and class definitions in `bid_selection.hpp` to reflect the data format and bid selection model.  The functions to change are getBidData() and getBidSelectionParams() (both used to import data whose format can change) and simulateAuction() (which has utility calculations that change depending on the bid selection model).  The classes to change are Bid and BidSelectionParams, which store information about the bids and the parameters from the selection model.
+  - To make it easier to write the functions, you can use the debugging tool `debug_bid_selection.cpp`, which runs each of the defined functions several times.  It can be compiled as `g++ -o debug_bid_selection.exe debug_bid_selection.cpp bid_selection.cpp`
 
 4. Compile the modified version of `calculate_costs.cpp` with the command: `g++ -o calculate_costs.exe calculate_costs.cpp bid_selection.cpp`
 

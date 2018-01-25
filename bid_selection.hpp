@@ -35,13 +35,28 @@ typedef struct {
     bool isLastBid; // Tells if this bid is the last one in the file
 } Bid;
 
+// Bid selection model coefficient data type
+typedef struct {
+    double bidAmountCoeff;
+    double sellRepCoeff;
+    double nestCorr;
+    double nestConstant;
+    double lnnumrepsCoeff;
+    double buyrepCoeff;
+    double lnprevcancelCoeff;
+} BidSelectionParams;
+
+
 // Function to import bid data from each row of a file
 Bid getBidData(std::FILE *bidFile);
+
+// Function to import bid selection model parameters
+BidSelectionParams getBidSelectionParams();
 
 // Function to simulate an auction
 std::pair<double, double> simulateAuction(Bid currentBid, int uAucType, int numBidderTypes,
                                           std::vector< std::vector< std::vector< std::vector<double> > > >& invCDFs,
-                                          std::vector<double>& nlogitParams);
+                                          BidSelectionParams& bidSelParams);
 
 
 // End header guard with endif statement

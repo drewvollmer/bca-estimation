@@ -126,30 +126,8 @@ void importInverseCDFs(vector< vector< vector< vector<double> > > >& invCDFs, Au
 
 }
 
-// Import nested logit parameters
-vector<double> importNLogitParams(){
-
-    ifstream infile("coeff.txt");
-    string line;
-    // Ignore the first (header) row
-    getline(infile, line);
-    int numCols = count(line.begin(), line.end(), '\t') + 1;
-
-    string toInsert;
-    vector<double> nlogitParams(numCols, 0);
-
-    for(int i = 0; i < numCols; i++){
-        infile >> toInsert;
-        // Ignore the first entry, y1 (string.compare() returns 0 for a match)
-        if( toInsert.compare("y1") == 0 ){
-            continue;
-        }
-        // Use atof() and .c_str() to convert string to double
-        nlogitParams[i] = atof(toInsert.c_str());
-    }
-
-    return( nlogitParams );
-}
+// Import nested logit parameters:
+// Defined in bid_selection.cpp
 
 
 
@@ -185,7 +163,7 @@ int main(){
     importInverseCDFs(invCDFs, aucTraits);
 
     // Import parameters as a vector (this restricts hard-coded changes to the function where they're used)
-    vector<double> nlogitParams = importNLogitParams();
+    BidSelectionParams nlp = getBidSelectionParams();
 
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -216,9 +194,9 @@ int main(){
     // // DEBUGGING: Only run a single simulated auction with a known outcome
     // currentBid = getBidData(bidFile);
     // currentBid = getBidData(bidFile);
-    // simulationResult = simulateAuction(currentBid, 0, aucTraits.numBidderTypes, invCDFs, nlogitParams);
-    // simulationResult = simulateAuction(currentBid, 1, aucTraits.numBidderTypes, invCDFs, nlogitParams);
-    // simulationResult = simulateAuction(currentBid, 2, aucTraits.numBidderTypes, invCDFs, nlogitParams);
+    // simulationResult = simulateAuction(currentBid, 0, aucTraits.numBidderTypes, invCDFs, nlp);
+    // simulationResult = simulateAuction(currentBid, 1, aucTraits.numBidderTypes, invCDFs, nlp);
+    // simulationResult = simulateAuction(currentBid, 2, aucTraits.numBidderTypes, invCDFs, nlp);
     
     while( ! currentBid.isLastBid ){
 
@@ -241,7 +219,7 @@ int main(){
 
             // Simulate results from the current bid numAucSims times, getting the selection probability and its derivative
             for(int i = 0; i < numAucSims; i++){
-                simulationResult = simulateAuction(currentBid, uAucType, aucTraits.numBidderTypes, invCDFs, nlogitParams);
+                simulationResult = simulateAuction(currentBid, uAucType, aucTraits.numBidderTypes, invCDFs, nlp);
                 probSum += simulationResult.first;
                 probDerSum += simulationResult.second;
             }
