@@ -11,7 +11,7 @@ insheet using "template_data.csv"
 gen decisiontype = 1 if bidamount == 0
 replace decisiontype = 2 if bidamount != 0
 label variable decisiontype "1 if cancel, 2 if bid"
-label variable overalldecision "1 if cancel was chose, 2 if a bid was chosen"
+label variable overalldecision "1 if cancel was chosen, 2 if a bid was chosen"
 
 gen nsellrep = sellrep - 8
 replace nsellrep = 0 if decisiontype == 1

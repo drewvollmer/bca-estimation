@@ -4,19 +4,7 @@
 // as routines to import data.
 // Drew Vollmer 2018-01-17
 
-
-// // Other headers
-// #include <stdio.h>
-// #include <iostream> // for cout
-// #include <math.h>
-// #include <stdlib.h>
-// #include <assert.h>
-// #include <strings.h>
-// #include <cstring>
-// #include <fstream> // for infile()
-// #include <algorithm> // to count character occurrences in string: std::count() (also for some string methods)
-// #include <vector> // For vector class
-
+// Libraries imported in bid_selection.hpp
 #include "bid_selection.hpp"
 
 
