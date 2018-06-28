@@ -80,7 +80,7 @@ for auc = auction_ids'
     auc_index = (auctions.AuctionID == auc);
     auc_bids = auctions( auc_index, :);
     % And find which bids aren't for the outside option
-    inside_bids = find( auc_bids.BidAmount >= 0 );
+    inside_bids = find( auc_bids.BidAmount > 0 );
 
     % Get the density for each inside option bid for each type of auction and add them together
     auction_density = nan( length(inside_bids), length(type_probs(1, :)) );
