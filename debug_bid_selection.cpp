@@ -2,6 +2,8 @@
 // A diagnostic for the functions modified in bid_selection.cpp so that they can be checked
 // during editing.  This file uses many of the building blocks of calculate_costs.cpp, such
 // as routines to import data.
+// Compilation command:
+// g++ -o debug_bid_selection.exe debug_bid_selection.cpp bid_selection.cpp
 // Drew Vollmer 2018-01-17
 
 // Libraries imported in bid_selection.hpp
@@ -15,14 +17,7 @@ using namespace std;
 ////////////////////////////////////////////////////////////
 //// Class definitions
 
-// Auction traits class storing the number of types used in the auction
-// (Inferred from data files in getAucTraits() at runtime.)
-typedef struct {
-    int numBidderTypes;
-    int numObsAucTypes;
-    int numUnobsAucTypes;
-} AucTraits;
-
+// Contained in bid_selection.hpp
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -44,29 +39,21 @@ AucTraits getAucTraits(){
 
     // Strategy: count the files that exist and break after the first file that does not exist
     while(true){
-        sprintf(fileName, "inv_cdf_bid%d_obsat1.csv", numBidderTypes + 1);
+        sprintf(fileName, "sample_bids_btype_%d_oauctype_1_uauctype_1.csv", numBidderTypes + 1);
         ifstream infile(fileName);
         if( infile.good() ){
             // Increase number of files found
             numBidderTypes++;
-
-            // Use the first file to get the number of columns in the data (unobserved auction types)
-            if( numBidderTypes == 1 ){
-                string firstLine;
-                getline(infile, firstLine);
-                aucTraits.numUnobsAucTypes = count(firstLine.begin(), firstLine.end(), ',') + 1;
-            }
-                
         } else {
             break;
         }
     }
 
     // After finding the number of bidder types, do the same thing to find the number of observed
-    // auction types
+    // auction types and unobserved auction types
     int numObsAucTypes = 0;
     while(true){
-        sprintf(fileName, "inv_cdf_bid1_obsat%d.csv", numObsAucTypes + 1);
+        sprintf(fileName, "sample_bids_btype_1_oauctype_%d_uauctype_1.csv", numObsAucTypes + 1);
         ifstream infile(fileName);
         if( infile.good() ){
             // Increase number of files found
@@ -75,19 +62,46 @@ AucTraits getAucTraits(){
             break;
         }
     }
-    
-    
+
+    int numUnobsAucTypes = 0;
+    while(true){
+        sprintf(fileName, "sample_bids_btype_1_oauctype_1_uauctype_%d.csv", numUnobsAucTypes + 1);
+        ifstream infile(fileName);
+        if( infile.good() ){
+            // Increase number of files found
+            numUnobsAucTypes++;
+        } else {
+            break;
+        }
+    }
+        
     aucTraits.numBidderTypes = numBidderTypes;
     aucTraits.numObsAucTypes = numObsAucTypes;
+    aucTraits.numUnobsAucTypes = numUnobsAucTypes;
     // cout << "Bidder types: " << numBidderTypes << "; Observed auction types: " << numObsAucTypes << "; Unobserved auction types: " << aucTraits.numUnobsAucTypes << "\n";
     return( aucTraits );
 }
 
 
-// Import inverse CDFs
-// Note that this function returns void, not the invCDFs 3D vector because of its size.  Instead,
+// Import sample bids
+// Helper function to import the next bid
+Bid getSampleBid(FILE *sampleBidFile){
+
+    char line[10000];
+    char *res = fgets(line, sizeof(line), sampleBidFile);
+
+    // Declare bid object to return and fill with the current line
+    Bid currentBid;
+
+    sscanf(line, "%lf, %d, %d, %d, %d, %lf, %lf", &currentBid.amount, &currentBid.bidderType,
+           &currentBid.loanOffered, &currentBid.usPanel, &currentBid.chinesePanel,
+           &currentBid.loanRate, &currentBid.relativeSystemSize);
+    
+    return( currentBid );
+}
+// Note that this function returns void, not the sampleBids vector, because of its size.  Instead,
 // the function returns void and fills in the vector using a reference to its memory address.
-void importInverseCDFs(vector< vector< vector< vector<double> > > >& invCDFs, AucTraits aucTraits){
+void importSampleBids(vector< vector< vector< vector<Bid> > > >& sampleBids, AucTraits aucTraits){
 
     // Loop over all files; start by initializing variables used in the loops
     int lineNum;
@@ -97,29 +111,25 @@ void importInverseCDFs(vector< vector< vector< vector<double> > > >& invCDFs, Au
     
     for(int i = 0; i < aucTraits.numBidderTypes; i++){
         for(int j = 0; j < aucTraits.numObsAucTypes; j++){
+            for(int k = 0; k < aucTraits.numUnobsAucTypes; k++){
 
-            // Get file name using current name index
-            sprintf(fileName, "inv_cdf_bid%d_obsat%d.csv", i + 1, j + 1);
+                // Get file name using current name indices
+                sprintf(fileName, "sample_bids_btype_%d_oauctype_%d_uauctype_%d.csv",
+                        i + 1, j + 1, k + 1);
+                cout << "Importing file " << fileName << "\n";
 
-            // Use ifstream to handle the unknown (at compile time) number of columns
-            ifstream infile(fileName);
-            // Ignore the first (header) row
-            getline(infile, line);
-        
-            // Use a double-loop over known dimensions to fill in invCDFs[i][j]
-            for(int row = 0; row < 1000; row++){
-                for( int currentCol = 0; currentCol < aucTraits.numUnobsAucTypes; currentCol++){
+                // Use ifstream
+                FILE* sampleBidFile = fopen(fileName, "r");
+                char line[10000];
+                char *res = fgets(line, sizeof(line), sampleBidFile); // Header line, which we ignore
 
-                    // Read the [i][currentCol][row] entry from the file
-                    infile >> stringToRead;
-
-                    // Remove trailing commas, if there are any
-                    stringToRead.erase( remove(stringToRead.begin(), stringToRead.end(), ','), stringToRead.end() );
-                    // Convert to double and insert into invCDFs vector
-                    invCDFs[i][j][currentCol][row] = atof( stringToRead.c_str() );
+                // Import in a loop
+                for(int row = 0; row < 10000; row++){
+                    sampleBids[i][j][k][row] = getSampleBid(sampleBidFile);
                 }
+                                
+                // Finished processing the current file; next loop iteration handles the next file
             }
-            // Finished processing the current file; next loop iteration handles the next file
         }
     }
 
@@ -137,20 +147,21 @@ int main(){
         return(1);
     }
 
-    // Import inverse CDF functions into a bidder_types x ObsAucTypes x UnobsAucTypes x 1000 vector
-    // (not an array since dimensions are unknown at compile time)
-    // vector< vector< vector<double> > > invCDFs( aucTraits.numBidderTypes,
-    //                                             vector< vector<double> >(aucTraits.numUnobsAucTypes, vector<double>(1000, 0)) );
-    vector< vector< vector< vector<double> > > > invCDFs( aucTraits.numBidderTypes,
-                    vector< vector< vector<double> > >(aucTraits.numObsAucTypes,
-                                                    vector< vector<double> >(aucTraits.numUnobsAucTypes, vector<double>(1000, 0)) ) );
-    // Use a function (returning void) to import data to the invCDFs vector. Pass in the whole vector, but the function only
-    // works with a reference to the memory address
-    importInverseCDFs(invCDFs, aucTraits);
+    cout << "Number of bidder types: " << aucTraits.numBidderTypes << "\n";
+    cout << "Number of unobservable auction types: " << aucTraits.numUnobsAucTypes << "\n";
+    cout << "Number of observable auction types: " << aucTraits.numObsAucTypes << "\n";
+    
+    // Import sample bids as a bidder_types x ObsAucTypes x UnobsAUcTypes x 10000 vector
+    // (Dimensions unknown at compile time)
+    Bid emptyBid;
+    vector< vector< vector< vector<Bid> > > > sampleBids( aucTraits.numBidderTypes,
+            vector< vector< vector<Bid> > >( aucTraits.numObsAucTypes,
+                    vector< vector<Bid> >(aucTraits.numUnobsAucTypes, vector<Bid>(10000, emptyBid)) ) );    
+    // Use a function (returning void) to import the bids. (Function takes the whole vector as an
+    // argument, but only works with a reference to the memory address.)
+    importSampleBids(sampleBids, aucTraits);
 
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    //// Debugging: parameter import
     
     // Import parameters as a vector (this restricts hard-coded changes to the function where they're used)
     BidSelectionParams nlp = getBidSelectionParams();
@@ -184,8 +195,13 @@ int main(){
 
         currentBid = getBidData(bidFile);
 
+        // Outside option bids have bidder type zero.  Don't simulate auctions for these.
+        if( currentBid.bidderType == 0 ){
+            continue;
+        }
+
         for(int j = 0; j < aucTraits.numUnobsAucTypes; j++){
-            simulationResult = simulateAuction(currentBid, j, aucTraits.numBidderTypes, invCDFs, nlp);
+            simulationResult = simulateAuction(currentBid, j, aucTraits.numBidderTypes, sampleBids, nlp);
         }
 
         if( bidCount > 10 ){
@@ -199,4 +215,3 @@ int main(){
     // Program finished execution: return normal exit code 0
     return 0;
 }
-

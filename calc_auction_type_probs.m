@@ -15,6 +15,7 @@ function [] = calc_auction_type_probs(NumUAucTypes)
 % Quality control for the command line parameter
 assert(nargin == 1, 'Function only takes one argument.');
 assert(NumUAucTypes == floor(NumUAucTypes), 'Input parameter must be an integer.');
+assert(NumUAucTypes > 0, 'Input parameter must be greater than zero.');
 
 
 %% Part 1: Import data
@@ -37,27 +38,30 @@ end
 % Initialize posterior probability of unobserved auction types. The lowest type (high-cost auctions)
 % is more likely for high average bids in the auction.  Use average bids to make an initial
 % guess about auction types.
-type_probs = nan(length(data.BidderType), NumUAucTypes);
-% Get quantiles of the bid data
-quantiles = linspace(0, 1, NumUAucTypes + 1); % this includes 0 and 1, which we don't want
-avgbid_cutoffs = quantile( data.AvgBid, quantiles(2:(end - 1)) ); % removes 0 and 1
+if NumUAucTypes > 1;
+    type_probs = nan(length(data.BidderType), NumUAucTypes);
+    % Get quantiles of the bid data
+    quantiles = linspace(0, 1, NumUAucTypes + 1); % this includes 0 and 1, which we don't want
+    avgbid_cutoffs = quantile( data.AvgBid, quantiles(2:(end - 1)) ); % removes 0 and 1
 
-% Assign .75 of the probability to the range where the average bid falls and spread evenly elsewhere
-for i = 1:(NumUAucTypes - 1)
-    % Only need to see if it's higher than the first quantile
-    if (i == 1);
-        avgbid_in_quantile = (data.AvgBid >= avgbid_cutoffs(i));
-    % For others, need to make sure it falls in the proper range
-    else;
-        avgbid_in_quantile = ( (data.AvgBid >= avgbid_cutoffs(i)) & ...
-                               (data.AvgBid < avgbid_cutoffs(i - 1)) );
-    end;
-    type_probs( avgbid_in_quantile, i ) = .75;
-    type_probs( ~avgbid_in_quantile, i ) = .25 / (NumUAucTypes - 1);
-end
-% Last column is 1 minus the sum of earlier entries
-type_probs(:, end) = 1 - sum(type_probs(:, 1:(end - 1)), 2);
-
+    % Assign .75 of the probability to the range where the average bid falls and spread evenly elsewhere
+    for i = 1:(NumUAucTypes - 1)
+        % Only need to see if it's higher than the first quantile
+        if (i == 1);
+            avgbid_in_quantile = (data.AvgBid >= avgbid_cutoffs(i));
+            % For others, need to make sure it falls in the proper range
+        else;
+            avgbid_in_quantile = ( (data.AvgBid >= avgbid_cutoffs(i)) & ...
+                                   (data.AvgBid < avgbid_cutoffs(i - 1)) );
+        end;
+        type_probs( avgbid_in_quantile, i ) = .75;
+        type_probs( ~avgbid_in_quantile, i ) = .25 / (NumUAucTypes - 1);
+    end
+    % Last column is 1 minus the sum of earlier entries
+    type_probs(:, end) = 1 - sum(type_probs(:, 1:(end - 1)), 2);
+else;
+    type_probs = ones(length(data.BidderType), NumUAucTypes);
+end;
 
 
 %% Iterate using the iterate_type_probs(data) function until auction type probabilities converge.
@@ -70,6 +74,18 @@ while (conv_metric > 0.000001)
     disp(sprintf('Iterations: %d.  Convergence criterion: %5.8f', iteration_count, conv_metric));
     iteration_count = iteration_count + 1;
 end
+
+% Write the type probabilities to a CSV (used for simulated auctions)
+fid = fopen('unobs_auc_type_probs.csv', 'w');
+fprintf(fid, strcat(repmat('type_%d_prob, ', 1, NumUAucTypes - 1), ' type_%d_prob\n'), 1: ...
+        NumUAucTypes);
+for row = 1:length(type_probs(:, 1));
+    fprintf(fid, strcat(repmat('%1.8f, ', 1, NumUAucTypes - 1), ' %1.8f\n'), ...
+            type_probs(row, :));
+end
+fclose(fid);
+
+
 
 
 %% Part 3: use converged probabilities to write inverse CDF
@@ -117,18 +133,19 @@ for bidder_type = bidder_types'
     
 end
 
-%% Write the inverse CDFs to one file for each bidder type/observed auction type pair
-for bidder_type = bidder_types'
-    for obs_auc_type = obs_auc_types'
-        fid = fopen(sprintf('inv_cdf_bid%d_obsat%d.csv', bidder_type, obs_auc_type), 'w');
-        fprintf(fid, strcat(repmat('type_%d_prob, ', 1, NumUAucTypes - 1), ' type_%d_prob\n'), 1:NumUAucTypes);
-        for i = 1:length(inv_cdfs(bidder_type, obs_auc_type, 1, :))
-            fprintf(fid, strcat(repmat('%1.8f, ', 1, NumUAucTypes - 1), ' %1.8f\n'), ...
-                    inv_cdfs(bidder_type, obs_auc_type, :, i));
-        end
-        fclose(fid);
-    end
-end
+% %% Write the inverse CDFs to one file for each bidder type/observed auction type pair
+% for bidder_type = bidder_types'
+%     for obs_auc_type = obs_auc_types'
+%         fid = fopen(sprintf('inv_cdf_bid%d_obsat%d.csv', bidder_type, obs_auc_type), 'w');
+%         fprintf(fid, strcat(repmat('type_%d_prob, ', 1, NumUAucTypes - 1), ' type_%d_prob\n'), 1:NumUAucTypes);
+%         for i = 1:length(inv_cdfs(bidder_type, obs_auc_type, 1, :))
+%             fprintf(fid, strcat(repmat('%1.8f, ', 1, NumUAucTypes - 1), ' %1.8f\n'), ...
+%                     inv_cdfs(bidder_type, obs_auc_type, :, i));
+%         end
+%         fclose(fid);
+%     end
+% end
+
 
 % %% Write bid data to a file (if transformation is necessary)
 

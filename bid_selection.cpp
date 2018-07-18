@@ -90,22 +90,33 @@ BidSelectionParams getBidSelectionParams(){
 
 // Implement function to simulate an auction
 pair<double, double> simulateAuction(Bid currentBid, int uAucType, int numBidderTypes,
-                                     vector< vector< vector< vector<double> > > >& invCDFs,
+                                     vector< vector< vector< vector<Bid> > > >& sampleBids,
                                      BidSelectionParams& bidSelParams){
 
     int numOtherBids = 9;
     
     // cout << "Starting bid: " << currentBid.amount << "; type " << currentBid.bidderType << "\n";
     
-    // Draw numOtherBids integers in {0, 1, ..., numBidderTypes} for bidder types. Then draw the same number of quantiles
-    // in {0, ..., 999} and get the bid corresponding to the quantile and bidder type from the inverse CDF
+    // TODO: distribution of other bidders
+    
+    cout << "Starting bid: " << currentBid.amount << "; type " << currentBid.bidderType << ", " << currentBid.state[0] << "\n";
+
+    // TODO: distribution of bidder types in this observed type of auction
+    // For now, randomly assign other bidder types with draws from {0, 1, ..., numBidderTypes - 1}
+
+    // Draw numOtherBids random bids from the sample for this observed auction type and the relevant bidder type
+    // Each draw is from {0, ..., 9999}
     int bidTypes[numOtherBids + 1];
-    double bids[numOtherBids + 1];
+    Bid bids[numOtherBids + 1];
     bidTypes[0] = currentBid.bidderType - 1; // Subtract 1 to adjust for indexing that starts at 0
-    bids[0] = currentBid.amount;
+    bids[0] = currentBid;
     for(int i = 1; i < numOtherBids + 1; i++){
         bidTypes[i] = random() % numBidderTypes;
-        bids[i] = invCDFs[bidTypes[i]][currentBid.obsAucType - 1][uAucType][random() % 1000];
+        bids[i] = sampleBids[bidTypes[i]][currentBid.obsAucType - 1][uAucType][random() % 10000];
+
+        // Fill in the auction-specific parts of the bid (memcpy needed to assign the array)
+        memcpy(bids[i].state, currentBid.state, sizeof(currentBid.state));
+
         // cout << uAucType << "; " << bidTypes[i] << "; " << bids[i] << "\n";
     }
 

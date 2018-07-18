@@ -46,6 +46,14 @@ typedef struct {
     double lnprevcancelCoeff;
 } BidSelectionParams;
 
+// Auction traits class storing the number of types used in the auction
+// (Inferred from data files in getAucTraits() at runtime.)
+typedef struct {
+    int numBidderTypes;
+    int numObsAucTypes;
+    int numUnobsAucTypes;
+} AucTraits;
+
 
 // Function to import bid data from each row of a file
 Bid getBidData(std::FILE *bidFile);
@@ -55,7 +63,7 @@ BidSelectionParams getBidSelectionParams();
 
 // Function to simulate an auction
 std::pair<double, double> simulateAuction(Bid currentBid, int uAucType, int numBidderTypes,
-                                          std::vector< std::vector< std::vector< std::vector<double> > > >& invCDFs,
+                                          std::vector< std::vector< std::vector< std::vector<Bid> > > >& sampleBids,
                                           BidSelectionParams& bidSelParams);
 
 

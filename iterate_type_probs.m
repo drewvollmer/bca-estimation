@@ -18,8 +18,7 @@ obs_auc_types = unique(auctions.OAucType);
 %%% and unobserved auction types
 
 % Points to include for the density estimation (exclude outside option from min and max)
-points = linspace(max(1, min(auctions.BidAmount(auctions.BidAmount >= 0)) - 10), ...
-                  1.05*max(auctions.BidAmount), 1000)';
+points = linspace(min(auctions.BidAmount(auctions.BidAmount >= 0)), 1.05*max(auctions.BidAmount))';
 
 % Instantiate a four-dimensional array: need the bid distribution as a function of bid traits,
 % observed auction traits, unobserved auction traits, and the points at which we evaluate
