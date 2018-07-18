@@ -91,24 +91,59 @@ BidSelectionParams getBidSelectionParams(){
 // Implement function to simulate an auction
 pair<double, double> simulateAuction(Bid currentBid, int uAucType, int numBidderTypes,
                                      vector< vector< vector< vector<Bid> > > >& sampleBids,
-                                     BidSelectionParams& bidSelParams){
+                                     BidSelectionParams& bidSelParams,
+                                     vector< vector<double> > bidderTypeCumDist,
+                                     vector< vector<double> > numBidCumDist){
 
-    int numOtherBids = 9;
-    
-    // cout << "Starting bid: " << currentBid.amount << "; type " << currentBid.bidderType << "\n";
-    
-    // TODO: distribution of other bidders
-    
-    cout << "Starting bid: " << currentBid.amount << "; type " << currentBid.bidderType << ", " << currentBid.state[0] << "\n";
 
-    // TODO: distribution of bidder types in this observed type of auction
-    // For now, randomly assign other bidder types with draws from {0, 1, ..., numBidderTypes - 1}
+    // Draw a random number of other bidders
+    double otherBidderIndex = (double)(random() % 1000) / 1000;
+    int numOtherBids = 0;
+    // Idea: while condition is true if numOtherBids should be greater than one.  In thise case,
+    // we add one and exit the loop with the proper number.
+    while( otherBidderIndex >= numBidCumDist[currentBid.obsAucType - 1][0] ){
+        numOtherBids++;
+        if( otherBidderIndex < numBidCumDist[currentBid.obsAucType - 1][numOtherBids] ){
+            break;
+        }
+    }
+    // Increase numOtherBids by one since indexing starts at 0
+    numOtherBids++;
+    //cout << "Random draw index " << otherBidderIndex << ".  " << numOtherBids << " other bids\n";
+    
+    //cout << "Starting bid: " << currentBid.amount << "; type " << currentBid.bidderType << ", " << currentBid.state[0] << "\n";
+
+
+    // For all other bids, draw a random bidder type
+    int bidTypes[numOtherBids + 1];
+    int simBidderType;
+    double bidderTypeIndex;
+    for(int i = 1; i < numOtherBids + 1; i++){
+
+        // Reset bidder type for new index
+        simBidderType = 0;
+
+        // Draw a new random value
+        bidderTypeIndex = (double)(random() % 1000) / 1000;
+
+        // Find the bidder type corresponding to the random value
+        while( bidderTypeIndex >= bidderTypeCumDist[currentBid.obsAucType - 1][0] ){
+            simBidderType++;
+            if( bidderTypeIndex < bidderTypeCumDist[currentBid.obsAucType - 1][simBidderType] ){
+                break;
+            }
+        }
+        //cout << "Random draw index " << bidderTypeIndex << ".  " << simBidderType++ << " bidder type\n";
+        bidTypes[i] = simBidderType + 1; // Adjust for index starting at 0
+    }
+    // The first bidType is given by currentBid
+    bidTypes[0] = currentBid.bidderType - 1; // Subtract 1 to adjust for indexing that starts at 0
+
+    
 
     // Draw numOtherBids random bids from the sample for this observed auction type and the relevant bidder type
     // Each draw is from {0, ..., 9999}
-    int bidTypes[numOtherBids + 1];
     Bid bids[numOtherBids + 1];
-    bidTypes[0] = currentBid.bidderType - 1; // Subtract 1 to adjust for indexing that starts at 0
     bids[0] = currentBid;
     for(int i = 1; i < numOtherBids + 1; i++){
         bidTypes[i] = random() % numBidderTypes;

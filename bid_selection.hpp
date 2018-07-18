@@ -18,6 +18,7 @@
 #include <fstream> // for infile()
 #include <algorithm> // to count character occurrences in string: std::count() (also for some string methods)
 #include <vector> // For vector class
+#include <numeric> // For accumulate()
 
 // Declarations
 // Note that the standard namespace isn't (and shouldn't) be used in the header file, so some data
@@ -61,10 +62,17 @@ Bid getBidData(std::FILE *bidFile);
 // Function to import bid selection model parameters
 BidSelectionParams getBidSelectionParams();
 
+// Function to import distribution of bidder types
+std::vector< std::vector<double> > importBidderTypeDist(AucTraits aucTraits);
+// Function to import distribution of number of bidders
+std::vector< std::vector<double> > importNumBidDist(AucTraits aucTraits);
+
 // Function to simulate an auction
 std::pair<double, double> simulateAuction(Bid currentBid, int uAucType, int numBidderTypes,
                                           std::vector< std::vector< std::vector< std::vector<Bid> > > >& sampleBids,
-                                          BidSelectionParams& bidSelParams);
+                                          BidSelectionParams& bidSelParams,
+                                          std::vector< std::vector<double> > bidderTypeCumDist,
+                                          std::vector< std::vector<double> > numBidCumDist);
 
 
 // End header guard with endif statement

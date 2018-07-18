@@ -135,6 +135,84 @@ void importSampleBids(vector< vector< vector< vector<Bid> > > >& sampleBids, Auc
 
 }
 
+// Import the distribution of bidder types in each observed type of auction
+vector< vector<double> > importBidderTypeDist(AucTraits aucTraits){
+
+    // Open the file and look for aucTraits.numObsAucTypes rows
+    ifstream infile("bidder_type_distribution.csv");
+
+    // Declare the output array
+    vector<double> emptyVec;
+    vector< vector<double> > bidderTypeDist(aucTraits.numObsAucTypes, emptyVec);
+    vector< vector<double> > bidderTypeCumDist(aucTraits.numObsAucTypes, emptyVec);
+
+
+    // Read each cell into the string readProb
+    string readProb;
+    // Traverse rows and columns
+    for(int row = 0; row < aucTraits.numObsAucTypes; row++){
+        for(int col = 0; col < aucTraits.numBidderTypes; col++){
+
+            // Take up to the next delimiter (comma unless it's the last column)
+            if( col < aucTraits.numBidderTypes - 1 ){
+                getline(infile, readProb, ',');
+            } else {
+                getline(infile, readProb, '\n');
+            }
+
+            // Define the probability of each bin and the cumulative probability
+            bidderTypeDist[row].push_back( atof(readProb.c_str()) );
+            bidderTypeCumDist[row].push_back( accumulate(bidderTypeDist[row].begin(), bidderTypeDist[row].end(), 0.0) );
+        }
+    }
+
+    // Return the cumulative probability since it's easier to compute with
+    return( bidderTypeCumDist );
+}
+
+
+// Import the distribution of the number of bids in each observed type of auction
+vector< vector<double> > importNumBidDist(AucTraits aucTraits){
+
+    // Open the file and look for aucTraits.numObsAucTypes rows
+    ifstream infile("num_bid_distribution.csv");
+
+    // Get the number of columns in the file
+    string firstLine;
+    getline(infile, firstLine);
+    int numCols = count(firstLine.begin(), firstLine.end(), ',') + 1;
+    // Reset to the start of the file
+    infile.seekg(0, ios::beg);
+    
+    // Declare the output array
+    vector<double> emptyVec;
+    vector< vector<double> > numBidDist(aucTraits.numObsAucTypes, emptyVec);
+    vector< vector<double> > numBidCumDist(aucTraits.numObsAucTypes, emptyVec);
+
+
+    // Read each cell into the string readProb
+    string readProb;
+    // Traverse rows and columns
+    for(int row = 0; row < aucTraits.numObsAucTypes; row++){
+        for(int col = 0; col < numCols; col++){
+
+            // Take up to the next delimiter (comma unless it's the last column)
+            if( col < numCols - 1 ){
+                getline(infile, readProb, ',');
+            } else {
+                getline(infile, readProb, '\n');
+            }
+
+            // Define the probability of each bin and the cumulative probability
+            numBidDist[row].push_back( atof(readProb.c_str()) );
+            numBidCumDist[row].push_back( accumulate(numBidDist[row].begin(), numBidDist[row].end(), 0.0) );
+        }
+    }
+    
+    // Return the cumulative probability since it's easier to compute with
+    return( numBidCumDist );
+}
+
 
 int main(){
 
@@ -161,10 +239,14 @@ int main(){
     // argument, but only works with a reference to the memory address.)
     importSampleBids(sampleBids, aucTraits);
 
-
     
-    // Import parameters as a vector (this restricts hard-coded changes to the function where they're used)
+    // Import parameters
     BidSelectionParams nlp = getBidSelectionParams();
+
+    // Import distribution of bidder types
+    vector< vector<double> > bidderTypeCumDist = importBidderTypeDist(aucTraits);
+    // Import distribution of number of bids
+    vector< vector<double> > numBidCumDist = importNumBidDist(aucTraits);
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -201,7 +283,8 @@ int main(){
         }
 
         for(int j = 0; j < aucTraits.numUnobsAucTypes; j++){
-            simulationResult = simulateAuction(currentBid, j, aucTraits.numBidderTypes, sampleBids, nlp);
+            simulationResult = simulateAuction(currentBid, j, aucTraits.numBidderTypes, sampleBids,
+                                               nlp, bidderTypeCumDist, numBidCumDist);
         }
 
         if( bidCount > 10 ){
